@@ -1,6 +1,11 @@
 'use client';
 
 import { useAuth } from "@/hooks/contexts/AuthContext";
+import { ResearchProvider } from "@/hooks/contexts/ResearchContext";
+import { ResearchQueryForm } from "@/components/research/ResearchQueryForm";
+import { ClarifyingQuestions } from "@/components/research/ClarifyingQuestions";
+import { ResearchStream } from "@/components/research/ResearchStream";
+import { ResearchResults } from "@/components/research/ResearchResults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -18,12 +23,17 @@ export default function ResearchPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 p-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-zinc-900 mb-2">Research</h1>
-          <p className="text-zinc-600">
-            Explore research features and tools
-          </p>
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-zinc-900 mb-2">Research</h1>
+            <p className="text-zinc-600">
+              Explore Hawaiian history, culture, and traditional practices
+            </p>
+          </div>
+          <Link href="/dashboard">
+            <Button variant="outline">Back to Dashboard</Button>
+          </Link>
         </div>
 
         {!isAuthenticated ? (
@@ -41,36 +51,15 @@ export default function ResearchPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Research Tools</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-zinc-600">
-                  Research features coming soon...
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Research</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-zinc-600">
-                  No research history available yet.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          <ResearchProvider>
+            <div className="space-y-6">
+              <ResearchQueryForm />
+              <ClarifyingQuestions />
+              <ResearchStream />
+              <ResearchResults />
+            </div>
+          </ResearchProvider>
         )}
-
-        <div className="mt-8">
-          <Link href="/">
-            <Button variant="outline">Back to Home</Button>
-          </Link>
-        </div>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/contexts/AuthContext";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -9,8 +11,15 @@ import { Separator } from "@/components/ui/separator";
 
 export default function Home() {
   const { user, isLoading, isAuthenticated } = useAuth();
+  const router = useRouter();
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user) {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, isAuthenticated, user, router]);
+
+  if (isLoading || (isAuthenticated && user)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50">
         <div className="text-lg text-zinc-600">Loading...</div>
@@ -18,9 +27,7 @@ export default function Home() {
     );
   }
 
-  if (!isAuthenticated || !user) {
-    return <LandingPage />;
-  }
+  return <LandingPage />;
 }
 
 function LandingPage() {

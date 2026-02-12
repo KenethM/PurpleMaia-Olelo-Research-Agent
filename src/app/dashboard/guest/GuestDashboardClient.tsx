@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import Link from "next/link";
 
 type DashboardUser = {
   id: string;
@@ -51,6 +52,20 @@ export default function GuestDashboardClient({ user }: GuestDashboardClientProps
           Join an organization to unlock more features and collaborate with teams.
         </AlertDescription>
       </Alert>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Research Agent</CardTitle>
+          <CardDescription>
+            Search Hawaiian history, culture, and traditional practices using AI
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild className="w-full" size="lg">
+            <Link href="/research">Go to Research</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

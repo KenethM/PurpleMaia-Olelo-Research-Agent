@@ -183,6 +183,20 @@ export default function SysAdminDashboardClient({ user, data }: SysAdminDashboar
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Research Agent</CardTitle>
+            <CardDescription>
+              Search Hawaiian history, culture, and traditional practices using AI
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="w-full">
+              <Link href="/research">Go to Research</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>

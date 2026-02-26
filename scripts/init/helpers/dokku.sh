@@ -76,11 +76,3 @@ echo "#NEXT_PUBLIC_BASE_URL=https://$DEV_DOMAIN" >> .env
 echo "#NEXT_PUBLIC_BASE_URL=https://$PROD_DOMAIN" >> .env
 echo "" >> .env
 echo ""
-
-# Edit GitHub Workflows to use new app name
-echo "Updating GitHub Workflows with new app name..."
-DEV_WORKFLOW_FILE=".github/workflows/deploy-dev.yml"
-PROD_WORKFLOW_FILE=".github/workflows/deploy.yml"
-sed -i '' "s|<APP_NAME>|$APP_NAME-dev|g" $DEV_WORKFLOW_FILE
-sed -i '' "s|<APP_NAME>|$APP_NAME|g" $PROD_WORKFLOW_FILE
-echo ""

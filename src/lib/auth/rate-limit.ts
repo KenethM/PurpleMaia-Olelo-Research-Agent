@@ -1,10 +1,7 @@
-import { db } from "../../db/kysely/client";
+import { Errors } from "@/lib/errors";
+import { db } from "@/db/kysely/client";
 import { NextRequest } from "next/server";
 
-/**
- * Extract client IP address from request headers
- * Checks common proxy headers in order of reliability
- */
 /**
  * Extract client IP address from request headers
  * Checks common proxy headers in order of reliability
@@ -94,7 +91,7 @@ export async function checkLoginRateLimit(ip: string | null, identifier: string)
     console.log(`[RateLimit] Login attempts in last ${WINDOW_MINUTES} minutes for Identifier (${identifier}): ${attemptCount}. Remaining: ${remainingAttempts}`);
 
     if (attemptCount >= MAX_ATTEMPTS) {
-        throw new Error('TOO_MANY_REQUESTS');
+        throw Errors.TOO_MANY_REQUESTS;
     }
 }
 

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { validateSessionFromCookies } from "@/lib/auth/session";
-import { fetchMemberDashboardData } from "@/services/data/member";
+import { fetchMemberDashboardData } from "@/lib/data/member";
 import MemberDashboardClient from "./MemberDashboardClient";
 
 export default async function MemberDashboard() {

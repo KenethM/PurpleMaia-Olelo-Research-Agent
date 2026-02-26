@@ -26,8 +26,3 @@ echo "Running multi-tenancy database migrations..."
 pnpm migrate:up d 1
 pnpm migrate:up p 1
 echo ""
-
-# Seed database with test data
-echo "Seeding database with test data..."
-tsx ./scripts/init/seed.ts
-echo ""

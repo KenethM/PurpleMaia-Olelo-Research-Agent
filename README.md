@@ -1,12 +1,69 @@
 # PMF App Template
 
-A full-stack [Next.js](https://nextjs.org) application template with authentication, database migrations, and automated Dokku deployment.
+A full-stack [Next.js](https://nextjs.org) application template with authentication, database migrations, and automated Dokku deployment. Do NOT clone this repository, instead click 'Use this template'
+
+## Prerequisites
+
+Install these tools globally before getting started:
+
+### Node.js (v20+)
+
+**macOS (using Homebrew):**
+```bash
+brew install node
+```
+
+**Windows (using winget):**
+```bash
+winget install OpenJS.NodeJS.LTS
+```
+
+**Linux (using nvm):**
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+nvm install 20
+```
+
+### pnpm
+
+**All platforms (after Node.js is installed):**
+```bash
+npm install -g pnpm
+```
+
+### golang-migrate
+
+Required for database migrations.
+
+**macOS:**
+```bash
+brew install golang-migrate
+```
+
+**Windows:**
+```bash
+scoop install migrate
+```
+
+**Linux:**
+```bash
+curl -L https://github.com/golang-migrate/migrate/releases/download/v4.18.1/migrate.linux-amd64.tar.gz | tar xvz
+sudo mv migrate /usr/local/bin/migrate
+```
+
+### Verify Installation
+
+```bash
+node --version    # Should be v20+
+pnpm --version    # Should be v8+
+migrate -version  # Should show version
+```
 
 ## Quick Start
 
 ### 1. Initialize the Project
 
-After cloning this repository, run the initialization script to set up your development and production environments:
+Run the initialization script to set up your development and production environments:
 
 ```bash
 pnpm run init

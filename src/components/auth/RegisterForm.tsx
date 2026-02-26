@@ -91,7 +91,7 @@ export function RegisterForm({ organizations }: RegisterFormProps) {
   };
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md" id='register-form'>
       <CardHeader>
         <CardTitle className="text-2xl text-center">Create Account</CardTitle>
       </CardHeader>
@@ -184,9 +184,9 @@ export function RegisterForm({ organizations }: RegisterFormProps) {
             </div>
 
             {isPartOfOrg && (
-              <div className="space-y-2">
+              <div className="space-y-2" id="org-selector">
                 <Label htmlFor="organization">Select Organization</Label>
-                <Select
+                <Select                  
                   value={selectedOrgId}
                   onValueChange={setSelectedOrgId}
                   disabled={isLoading}

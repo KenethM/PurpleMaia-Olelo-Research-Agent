@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import type { SysAdminDashboardData } from "@/services/data/sysadmin";
+import type { SysAdminDashboardData } from "@/lib/data/sysadmin";
 
 const formatCount = (value: number) => value.toLocaleString();
 
@@ -180,20 +180,6 @@ export default function SysAdminDashboardClient({ user, data }: SysAdminDashboar
           <CardContent>
             <Button asChild variant="outline" className="w-full">
               <Link href="/dashboard/sysadmin/settings">System Settings</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Research Agent</CardTitle>
-            <CardDescription>
-              Search Hawaiian history, culture, and traditional practices using AI
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full">
-              <Link href="/research">Go to Research</Link>
             </Button>
           </CardContent>
         </Card>

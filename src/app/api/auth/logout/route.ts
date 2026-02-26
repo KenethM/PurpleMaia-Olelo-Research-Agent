@@ -5,22 +5,18 @@ import { AppError } from "@/lib/errors";
 
 // NOTE: This is also accessed when user/admin clicks "Logout" in the UI
 export async function POST(request: NextRequest) {
-    console.log('[LOGOUT] Logout attempt received.');        
 
     try {
         // Invalidate session in backend (DB)
         const session = await invalidateSession(request);
 
-        const redirectUrl = new URL('/', process.env.NEXT_PUBLIC_BASE_URL);
+        const redirectUrl = new URL('/', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
 
-        console.log('[LOGOUT] Setting redirect location to:', redirectUrl.toString(), '...');
+        // console.log('[LOGOUT] Setting redirect location to:', redirectUrl.toString(), '...');
         const res = NextResponse.redirect(redirectUrl);
 
         // Delete session cookie in browser
-        console.log('[LOGOUT] Deleting session cookie in browser...');
         deleteSessionCookieInBrowser(session, res);
-
-        console.log('[LOGOUT] User logged out successfully');
         return res;
     } catch (error) {
         if (error instanceof AppError) {

@@ -3,11 +3,9 @@ import { validateSession } from '@/lib/auth/session';
 import { AppError } from '@/lib/errors';
 
 export async function GET(request: NextRequest) {
-  console.log('[SESSION] Session validation attempt received.');
-
   try {
       const user = await validateSession(request);
-      console.log('[SESSION] Session validated successfully for account:', user.id.slice(0, 6), '... | role:', user.role);
+      console.log('[SESSION] Session validated successfully for account:', user.id.slice(0, 6));
       return NextResponse.json({ user }, { status: 200 });
   } catch (error) {
       if (error instanceof AppError) {

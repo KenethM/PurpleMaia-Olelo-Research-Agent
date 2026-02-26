@@ -6,11 +6,9 @@ echo "======================================================================="
 echo "=================== PMF App Initialization ============================"
 echo "======================================================================="
 
-# Input new app name
+# Get Inputs
 echo ""
 read -p "Enter your new app name (no spaces or special characters): " APP_NAME
-
-# Input PMF Remote Host
 read -p "Enter the PMF Dokku Host (get from PMF Builder Admin): " PMF_DOKKU_HOST
 
 # Create .env file
@@ -20,12 +18,25 @@ touch .env
 echo "PMF_DOKKU_HOST=$PMF_DOKKU_HOST" >> .env
 echo "" >> .env
 
+# Check for SSH access to Dokku host
+echo "Verifying SSH access to Dokku host..."
+ssh dokku@$PMF_DOKKU_HOST apps:list > /dev/null 2>&1
+if [ $? -ne 0 ];
+then
+    echo "SSH access to Dokku host failed. Please ensure your SSH key is added to the Dokku server."
+    echo ""
+    echo "Run the SSH-key initialization script: "
+    echo "pnpm run init:ssh"
+    echo ""
+    echo "Then contact PMF Builder Admin after running the script."
+    exit 1 
+fi
+echo "SSH access to Dokku host verified successfully!"
+
 # Build Dokku Apps & Postgres Containers
 echo ""
 echo "Building Dokku apps & postgres containers..."
-./scripts/init/dokku.sh $APP_NAME
-
-# If dokku setup fails, exit script
+./scripts/init/helpers/dokku.sh $APP_NAME
 if [ $? -ne 0 ]; then
     echo "Dokku setup failed. Exiting initialization."
     exit 1
@@ -60,9 +71,13 @@ pnpm install
 echo ""
 
 # Run database migrations
-./scripts/init/db.sh
+./scripts/init/helpers/db.sh
+if [ $? -ne 0 ]; then
+    echo "Database migration failed. Exiting initialization."
+    exit 1
+fi
+echo ""
 
-# Create sysadmin user for dev on this project
 # Create a pepper for password hashing and store it in .env
 echo "Creating pepper..."
 PEPPER=$(openssl rand -hex 32)
@@ -78,7 +93,29 @@ echo ""
 
 # Set up system admin user
 echo "Setting up system admin user..."
-tsx ./scripts/init/sysadmin.ts
+tsx ./scripts/init/helpers/sysadmin.ts
+echo ""
+
+# Seed database with test data
+echo "Seeding database with test data..."
+tsx ./scripts/init/helpers/seed.ts
+echo ""
+
+# Create GitHub workflows for Dokku deployment
+echo "Creating GitHub workflows for Dokku deployment..."
+./scripts/init/helpers/cicd.sh $PMF_DOKKU_HOST $APP_NAME
+if [ $? -ne 0 ]; then
+    echo "GitHub workflow setup failed. Exiting initialization."
+    exit 1
+fi
+echo ""
+
+# Add template repo as git remote for future syncing
+./scripts/init/helpers/register.sh
+if [ $? -ne 0 ]; then
+    echo "PMF template registration failed. Exiting initialization."
+    exit 1
+fi
 echo ""
 
 # Catch SIGINT to exit gracefully

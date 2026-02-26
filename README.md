@@ -1,12 +1,12 @@
 # PMF App Template
 
-A full-stack [Next.js](https://nextjs.org) application template with authentication, database migrations, and automated Dokku deployment.
+A full-stack [Next.js](https://nextjs.org) application template with authentication, database migrations, and automated Dokku deployment. Do NOT clone this repository, instead click 'Use this template'
 
 ## Quick Start
 
 ### 1. Initialize the Project
 
-After cloning this repository, run the initialization script to set up your development and production environments:
+Run the initialization script to set up your development and production environments:
 
 ```bash
 pnpm run init

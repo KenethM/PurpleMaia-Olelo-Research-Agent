@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { validateSessionFromCookies } from "@/lib/auth/session";
-import { fetchSysAdminDashboardData } from "@/services/data/sysadmin";
+import { fetchSysAdminDashboardData } from "@/lib/data/sysadmin";
 import SysAdminDashboardClient from "./SysAdminDashboardClient";
 
 export default async function SysAdminDashboard() {

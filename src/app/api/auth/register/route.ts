@@ -15,7 +15,6 @@ const registerSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  console.log('[REGISTER] Registration attempt received.');
 
   try {
     const body = await request.json();
@@ -31,7 +30,6 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, username, password, organizationId } = parsed.data;
-    console.log('[REGISTER] Input validated for user:', username);
 
     // Check if email already exists
     const existingEmail = await db
@@ -86,8 +84,6 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to create user');
     }
 
-    console.log('[REGISTER] User created successfully:', newUser.id);
-
     // If organization is provided, create member record
     if (organizationId) {
       await db
@@ -98,7 +94,6 @@ export async function POST(request: NextRequest) {
           user_role: 'member', // Default role for new members
         })
         .execute();
-      console.log('[REGISTER] User added to organization:', organizationId);
     }
 
     // Create session and return response
@@ -115,7 +110,6 @@ export async function POST(request: NextRequest) {
     
     const sessionSetResponse = await createSession(newUser.id, 'user', res);
     
-    console.log('[REGISTER] User registered and logged in successfully');
     return sessionSetResponse;
 
   } catch (error) {

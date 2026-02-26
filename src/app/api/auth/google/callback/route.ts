@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         const storedCodeVerifier = cookieStore.get("google_oauth_code_verifier")?.value;
 
         if (!storedState || storedState !== state) {
-            console.error("[oauth/callback] State mismatch - possible CSRF attack");
+            console.error("[oauth/callback] State mismatch - possible CSRF attack on " + request.url);
             loginUrl.searchParams.set("error", "invalid_state");
             return NextResponse.redirect(loginUrl);
         }

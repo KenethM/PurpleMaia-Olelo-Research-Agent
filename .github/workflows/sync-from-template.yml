@@ -1,0 +1,72 @@
+# Pull updates from the template repository and create a PR.
+# Runs weekly and can be triggered manually.
+
+name: Sync from Template
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Every Monday at 9 AM UTC
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch template and create PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Add template remote if it doesn't exist
+          git remote add template https://github.com/PurpleMaia/app-template.git 2>/dev/null || true
+
+          # Fetch latest from template
+          git fetch template main
+
+          # Check if there are any differences
+          DIFF=$(git log HEAD..template/main --oneline)
+          if [ -z "$DIFF" ]; then
+            echo "No new changes from template."
+            exit 0
+          fi
+
+          echo "Changes detected from template:"
+          echo "$DIFF"
+
+          # Create a new branch for the sync
+          BRANCH="template-sync-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH"
+
+          # Merge template changes
+          if git merge template/main --no-edit; then
+            echo "Merge successful."
+          else
+            echo "Merge conflicts detected. Committing with conflicts for manual resolution."
+            git add -A
+            git commit -m "chore: sync with template (conflicts need resolution)"
+          fi
+
+          # Push the branch
+          git push -u origin "$BRANCH"
+
+          # Create PR
+          gh pr create \
+            --title "chore: sync with template repository" \
+            --body "This PR syncs the latest changes from the template repository.
+
+          **Template:** PurpleMaia/app-template
+
+          Please review the changes carefully. If there are merge conflicts, they will need to be resolved manually." \
+            --head "$BRANCH"
+
+          echo "PR created successfully."

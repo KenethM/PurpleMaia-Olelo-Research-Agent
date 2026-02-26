@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { AdminDashboardData } from "@/services/data/admin";
+import type { AdminDashboardData } from "@/lib/data/admin";
 
 const formatCount = (value: number) => value.toLocaleString();
 

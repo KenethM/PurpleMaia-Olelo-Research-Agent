@@ -40,7 +40,7 @@ export function LoginForm({ loginType }: LoginFormProps) {
   };
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md" id='login-form'>
       <CardHeader>
         <CardTitle className="text-2xl text-center">
           {loginType === 'sysadmin' ? 'Internal Login' : 'User Login'}
@@ -49,7 +49,7 @@ export function LoginForm({ loginType }: LoginFormProps) {
 
       <CardContent>
         {error && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="destructive" className="mb-4" id='login-errors'>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -106,6 +106,7 @@ export function LoginForm({ loginType }: LoginFormProps) {
 
             <Button
               type="button"
+              id='google-login-button'
               variant="outline"
               className="w-full"
               size="lg"

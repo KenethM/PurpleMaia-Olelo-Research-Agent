@@ -16,9 +16,8 @@ if [ -z "$PMF_DOKKU_HOST" ]; then
     exit 1
 fi
 
-echo "Initializing SSH key..."
-
 # Check if SSH keys already exist
+
 if [ -f "$HOME/.ssh/id_ed25519" ]; then
     echo "SSH key already exists."
 else
@@ -33,7 +32,8 @@ echo "Your public SSH key is:"
 cat "$HOME/.ssh/id_ed25519.pub"
 
 # Send instructions to add the SSH key to Github
-echo "Send the above public key to PMF Builder admin then press any key to continue..."
+echo ""
+echo "Send the above public key to PMF Builder admin, wait for approval from admin, then press any key to continue..."
 read -n 1 -s
 
 # Validate SSH access

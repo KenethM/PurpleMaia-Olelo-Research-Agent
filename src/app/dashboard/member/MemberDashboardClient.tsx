@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { MemberDashboardData } from "@/services/data/member";
+import type { MemberDashboardData } from "@/lib/data/member";
 
 const formatCount = (value: number) => value.toLocaleString();
 

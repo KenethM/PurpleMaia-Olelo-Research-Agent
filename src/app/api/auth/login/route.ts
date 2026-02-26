@@ -6,7 +6,7 @@ import { createSession } from "@/lib/auth/session";
 import { checkLoginRateLimit, getClientIP, getUserAgent, recordLoginAttempt, clearFailedAttempts } from "@/lib/auth/rate-limit";
 
 // Login input validation schema (linient on local dev)
-const loginSchema = z.object({
+export const loginSchema = z.object({
   identifier: process.env.NODE_ENV === "production" ? z.string()
     .min(1, { message: "Email or Username is required." })               
     .refine((value) => { 
@@ -25,13 +25,14 @@ const loginSchema = z.object({
     .min(1, { message: "Password is required." }),
 });
 
+// could throw Zod Login Schema related, TOO_MANY_REQUESTS, INVALID_CREDENTIALS, INTERNAL_SERVER_ERROR
 export async function POST(request: NextRequest) {
-  console.log('[LOGIN] Login attempt received.');
+  // console.log('[LOGIN] Login attempt received.');
 
   // Extract metadata for login rate limiting
   const ip = getClientIP(request);
   const userAgent = getUserAgent(request);
-  console.log('[LOGIN] Client IP:', ip, ' | User-Agent:', userAgent);
+  // console.log('[LOGIN] Client IP:', ip, ' | User-Agent:', userAgent);
 
   // Validate and safe parse input
   const { credentials } = await request.json();
@@ -64,11 +65,16 @@ export async function POST(request: NextRequest) {
       const sessionSetResponse = await createSession(user.id, sessionType, res);
       
       console.log('[LOGIN] Logged in successfully');
+      console.log(sessionSetResponse)
       return sessionSetResponse;
   } catch (error) {
       if (error instanceof AppError) {
-            // Record failed login attempt
-            await recordLoginAttempt(ip, userAgent, identifier, false, error.message);
+            // Record failed login attempt if not due to rate limit (which is handled in checkLoginRateLimit)
+            if (error.code !== 'TOO_MANY_REQUESTS') {
+              await recordLoginAttempt(ip, userAgent, identifier, false, error.message);
+            } else {
+              console.warn(`[LOGIN] Failed too many login attempts for Identifier: ${identifier}`);
+            }
             return NextResponse.json(
                 { error: error.message },
                 { status: error.statusCode }

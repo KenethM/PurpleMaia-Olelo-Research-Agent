@@ -152,7 +152,7 @@ interface ResearchContextType {
   dispatch: React.Dispatch<ResearchAction>;
   initiateResearch: (query: string) => Promise<void>;
   submitAnswers: (answers: QuestionAnswer[]) => Promise<void>;
-  submitRefinement: (refinementQuery: string) => Promise<void>;
+  submitRefinement: (refinementQuery: string) => Promise<boolean>;
   confirmNewTopic: () => void;
   reset: () => void;
 }
@@ -241,10 +241,10 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
    * If on-topic, saves the current session to conversation history and starts
    * a new research session with the prior context attached.
    */
-  const submitRefinement = async (refinementQuery: string) => {
+  const submitRefinement = async (refinementQuery: string): Promise<boolean> => {
     if (!state.sessionId) {
       dispatch({ type: 'SET_ERROR', payload: 'No active research session' });
-      return;
+      return false;
     }
 
     try {
@@ -273,7 +273,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
             pendingQuery: refinementQuery,
           },
         });
-        return;
+        return true;
       }
 
       // Save current session to conversation history before transitioning
@@ -293,11 +293,13 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
         type: 'INIT_RESEARCH',
         payload: { query: refinementQuery, sessionId: data.sessionId },
       });
+      return false;
     } catch (error) {
       dispatch({
         type: 'SET_ERROR',
         payload: error instanceof Error ? error.message : 'An error occurred',
       });
+      return false;
     }
   };
 

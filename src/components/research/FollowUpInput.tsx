@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquarePlus, AlertTriangle, RotateCcw, ArrowRight } from 'lucide-react';
 
 export function FollowUpInput() {
-  const { state, submitRefinement, confirmNewTopic } = useResearch();
+  const { state, dispatch, submitRefinement, confirmNewTopic } = useResearch();
   const [query, setQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -17,11 +17,12 @@ export function FollowUpInput() {
     e.preventDefault();
     if (!query.trim() || isSubmitting) return;
 
+    const trimmed = query.trim();
     setIsSubmitting(true);
     try {
-      await submitRefinement(query.trim());
-      // Only clear if no drift was detected (drift keeps the input so user can see it)
-      if (!state.topicDrift.detected) {
+      const driftDetected = await submitRefinement(trimmed);
+      // Only clear the input if no drift was detected
+      if (!driftDetected) {
         setQuery('');
       }
     } finally {
@@ -58,10 +59,7 @@ export function FollowUpInput() {
           </Button>
           <Button
             variant="outline"
-            onClick={() => {
-              // Dismiss drift warning and let them revise their follow-up
-              // We keep the query in local state so they can edit it
-            }}
+            onClick={() => dispatch({ type: 'CLEAR_TOPIC_DRIFT' })}
           >
             Cancel
           </Button>

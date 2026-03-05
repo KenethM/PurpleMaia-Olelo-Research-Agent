@@ -240,9 +240,10 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
     const papakiloContext = papakiloData.articles.map((a) => ({
       content: a.rawText.slice(0, 2000),
       title: a.title || a.articleId,
-      docType: 'papakilo-live',
+      docType: 'papakilo-live' as const,
       publication: extractNewspaperCode(a.articleId),
       date: extractDateFromArticleId(a.articleId),
+      url: a.url ?? undefined,
     }));
 
     const mergedContext = [...vectorContext, ...papakiloContext];
@@ -253,13 +254,6 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
       session.answers,
       conversationContext ?? undefined
     );
-
-    // Merge papakilo sources into result sources (re-index IDs to avoid conflicts)
-    const papakiloSources = papakiloData.sources.map((s, i) => ({
-      ...s,
-      id: `src_${mergedContext.length - papakiloContext.length + i}`,
-    }));
-    researchResult.sources = [...researchResult.sources, ...papakiloSources];
 
     // Send progressive result
     stream.sendResult(researchResult);

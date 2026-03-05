@@ -174,6 +174,7 @@ export function ResearchFeedback() {
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="Any comments? (optional)"
                 className="min-h-[60px] resize-none text-sm"
+                maxLength={1000}
               />
 
               {error && (

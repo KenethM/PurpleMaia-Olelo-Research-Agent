@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Trash2, Clock, MessageSquare } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { Plus, Search, Trash2, Clock, MessageSquare, Settings, Sun, Moon, Monitor, User, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/contexts/AuthContext';
 import type { ResearchSession } from '@/types/research';
 
 function truncateQuery(query: string, maxLength = 55): string {
@@ -31,6 +35,8 @@ function formatRelativeTime(date: Date): string {
 
 export function ResearchSidebar() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [sessions, setSessions] = useState<ResearchSession[]>([]);
   const [feedbackIds, setFeedbackIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
@@ -179,6 +185,80 @@ export function ResearchSidebar() {
           )}
         </div>
       </ScrollArea>
+
+      {/* Footer — user info + settings */}
+      <div className="border-t p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex-shrink-0 h-7 w-7 rounded-full bg-muted flex items-center justify-center">
+              <User className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+            <span className="text-xs text-muted-foreground truncate">
+              {user?.username ?? user?.email ?? 'Account'}
+            </span>
+          </div>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0">
+                <Settings className="h-3.5 w-3.5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="end" className="w-48 p-2">
+              {/* Theme */}
+              <p className="text-xs font-medium text-muted-foreground px-2 py-1">Theme</p>
+              <div className="flex gap-1 px-2 pb-2">
+                <Button
+                  variant={theme === 'light' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="flex-1 h-7 text-xs"
+                  onClick={() => setTheme('light')}
+                >
+                  <Sun className="h-3 w-3 mr-1" />
+                  Light
+                </Button>
+                <Button
+                  variant={theme === 'dark' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="flex-1 h-7 text-xs"
+                  onClick={() => setTheme('dark')}
+                >
+                  <Moon className="h-3 w-3 mr-1" />
+                  Dark
+                </Button>
+                <Button
+                  variant={theme === 'system' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="flex-1 h-7 text-xs"
+                  onClick={() => setTheme('system')}
+                >
+                  <Monitor className="h-3 w-3 mr-1" />
+                  Auto
+                </Button>
+              </div>
+
+              <Separator className="my-1" />
+
+              {/* Account */}
+              <Link href="/dashboard" className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm hover:bg-accent transition-colors">
+                <User className="h-3.5 w-3.5" />
+                Account
+              </Link>
+
+              <Separator className="my-1" />
+
+              {/* Logout */}
+              <button
+                onClick={logout}
+                className="flex w-full items-center gap-2 px-2 py-1.5 rounded-sm text-sm text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
+              </button>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
     </div>
   );
 }

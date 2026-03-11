@@ -19,12 +19,8 @@ export default async function DashboardPage() {
     const user = await validateSessionFromCookies(cookieStore);
     if (user.system_role === "sysadmin") {
       destination = "/dashboard/sysadmin";
-    } else if (user.role === "admin") {
-      destination = "/dashboard/admin";
-    } else if (user.role === "member") {
-      destination = "/dashboard/member";
     } else {
-      destination = "/dashboard/guest";
+      destination = "/research";
     }
   } catch {
     destination = "/login?type=user";

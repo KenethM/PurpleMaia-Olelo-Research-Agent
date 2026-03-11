@@ -11,6 +11,7 @@ import * as embedding from './embedding';
 import * as vectorSearch from './vector-search';
 import * as papakilo from './papakilo';
 import { researchConfig } from '@/lib/config/research';
+import { detectBriefType, loadBrief } from './briefs';
 import type { ResearchStream } from './stream';
 
 export interface InitiateResult {
@@ -229,8 +230,8 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
       }
     }
 
-    // Step 5: Merge context from both sources and synthesize with Claude (pass conversation context)
-    sendActivity(stream, 'analyzing', 'Synthesizing research findings...');
+    // Step 5: Triage articles against research brief using the triage agent approach
+    sendActivity(stream, 'analyzing', 'Triaging articles against research brief...');
 
     const vectorContext = vectorResults.map((r) => ({
       content: r.chunkContent,
@@ -253,9 +254,14 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
 
     const mergedContext = [...vectorContext, ...papakiloContext];
 
-    const researchResult = await claude.synthesize(
+    const briefType = detectBriefType(session.query, analysis.searchTerms);
+    const briefText = loadBrief(briefType);
+    sendActivity(stream, 'analyzing', `Using research brief: ${briefType}`);
+
+    const researchResult = await claude.triage(
       session.query,
       mergedContext,
+      briefText,
       session.answers,
       conversationContext ?? undefined
     );

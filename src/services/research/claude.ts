@@ -4,6 +4,7 @@ import type {
   QuestionAnswer,
   ResearchResult,
   Source,
+  Finding,
 } from '@/types/research';
 import { researchConfig } from '@/lib/config/research';
 
@@ -137,49 +138,88 @@ When generating searchTerms:
 - If answers to clarifying questions are provided, incorporate them to narrow the search terms
 - Include related cultural concepts that would appear in historical documents`;
 
-const SYNTHESIS_PROMPT = `You are a Hawaiian research assistant synthesizing findings from Hawaiian language newspaper archives and the Papa Kilo database. Present findings in a structured, scholarly format that respects Hawaiian culture and language.
+const TRIAGE_SYSTEM_PROMPT = `You are a research triage agent for the Papakilo Hawaiian Newspaper Database. Article OCR text is provided directly to you. Assess each article's relevance against the provided research brief and extract structured findings.
 
-Respond with JSON in exactly this format:
+## Process
+
+For each article:
+
+### Step 1: Assess relevance tier using the brief's criteria
+- **Tier 1** — Article directly addresses the research topic with substantial detail
+- **Tier 2** — Article contains relevant information but not as primary focus, or limited content
+- **Tier 3** — Article only mentions the topic in passing. No substantive content.
+
+Write a 1-2 sentence reason referencing specific content from the article.
+
+### Step 2: Extract findings (Tier 1 and 2 ONLY)
+- Quote DIRECTLY from the OCR text — no paraphrasing, no cleanup, no inference
+- Tag with taxonomy tags from the brief
+- Assess OCR clarity: high / medium / low
+- Write a brief note explaining what the quote contains (interpretation goes here, not in the quote)
+- If OCR prevents accurate extraction, write: "OCR too garbled for accurate extraction — researcher should view original scan"
+
+### Step 3: Identify follow-ups
+- Author names worth searching separately
+- Series continuations ("Aole i pau" = article continues)
+- New search terms discovered in the text
+- Region or time period gaps this article reveals
+
+## Strict Rules (non-negotiable)
+
+1. NO INFERENCE — only report what is explicitly present
+   - author: only if byline is explicitly present in text
+   - region_mentions: only regions named in the article text
+   - quote: direct OCR text verbatim, never cleaned up
+2. NO HALLUCINATION — mark garbled OCR as [OCR unclear], never guess
+3. Tier 3 articles get NO findings extracted
+4. Every quote must be traceable to the provided article text
+
+## Output Format
+
+Return ONLY a JSON object, no other text:
+
 {
-  "summary": "string (2-3 paragraphs synthesizing key findings, preserving Hawaiian terms with English translations in parentheses)",
-  "findings": [
+  "triage_summary": {
+    "articles_processed": 5,
+    "tier_1": 1,
+    "tier_2": 2,
+    "tier_3": 2,
+    "errors": 0
+  },
+  "articles": [
     {
-      "id": "f1",
+      "id": "src_0",
+      "title": "article title from text or metadata",
+      "date": "YYYY-MM-DD or null",
+      "source": "newspaper name or null",
+      "author": null,
+      "region_mentions": [],
       "tier": 1,
-      "title": "string (English title or description)",
-      "hawaiianTitle": "string (Hawaiian language title if present in source, otherwise omit)",
-      "content": "string (detailed explanation; every claim must include an inline citation like [src_0]; preserve Hawaiian text with English translation in parentheses)",
-      "sources": ["src_0", "src_1"],
-      "confidence": "high" | "medium" | "low",
-      "keyExcerpts": ["string (verbatim Hawaiian or English excerpt from source, clearly legible only)"],
-      "placeNames": ["string (ahupuaʻa, moku, island, district names mentioned)"],
-      "methods": ["string (cultivation methods, practices, techniques described)"]
+      "reason": "1-2 sentence explanation referencing specific content",
+      "ocr_quality": "high|medium|low",
+      "series": null
     }
   ],
-  "relatedTopics": ["string"]
-}
-
-Tiering rules — assign EVERY finding a tier:
-- tier 1 (HIGH VALUE): Multiple corroborating sources, high confidence, rich detail
-- tier 2 (MEDIUM VALUE): Single strong source, moderate detail or clarity
-- tier 3 (SUPPLEMENTARY): Partial, inferred, or OCR-degraded content, low confidence
-
-Citation rules — strictly enforced:
-- Every factual claim in "content" must have an inline [src_N] citation
-- Include the source URL in citations whenever available, e.g. "According to [src_0](url)"
-- Preserve Hawaiian language text exactly as it appears in the source, followed by English translation in parentheses
-- Do NOT fabricate sources or citations
-
-Additional guidelines:
-- Include physical descriptions, measurements, colors, textures when present in sources
-- Extract place names (ahupuaʻa, moku, island) into the placeNames array
-- Extract cultivation methods, preparation techniques, ceremonial practices into methods array
-- keyExcerpts: only include clearly legible text — never attempt to reconstruct garbled OCR
-- Sources with docType "papakilo-live" are live-scraped OCR — apply tier 2 or 3 unless content is clearly readable
-- The summary should synthesize across tiers and be accessible to a general audience
-- relatedTopics: suggest 3-5 areas for further research
-- If no documents were found, state this clearly and use tier 3 with confidence "low" for any general knowledge provided
-- If prior research context is provided, build upon it rather than repeating already-covered material`;
+  "findings": [
+    {
+      "article_id": "src_0",
+      "priority": "primary-tag-from-brief-taxonomy",
+      "tags": ["tag1", "tag2"],
+      "quote": "verbatim OCR text from the article",
+      "ocr_clarity": "high|medium|low",
+      "note": "what this quote means or contains — interpretation goes here"
+    }
+  ],
+  "followups": [
+    {
+      "type": "term|author|series|newspaper|region-gap|time-gap|source-gap",
+      "value": "the specific thing to follow up on",
+      "source_article_id": "src_0",
+      "priority": "high|medium|low",
+      "notes": "why this is worth pursuing"
+    }
+  ]
+}`;
 
 /**
  * Analyzes a user query using Claude to determine if clarification is needed
@@ -234,18 +274,72 @@ export async function analyzeQuery(
   };
 }
 
+// Internal triage types matching the triage agent output schema
+interface TriageArticle {
+  id: string;
+  title: string;
+  date: string | null;
+  source: string | null;
+  author: string | null;
+  region_mentions: string[];
+  tier: 1 | 2 | 3;
+  reason: string;
+  ocr_quality: 'high' | 'medium' | 'low';
+  series: string | null;
+}
+
+interface TriageFinding {
+  article_id: string;
+  priority: string;
+  tags: string[];
+  quote: string;
+  ocr_clarity: 'high' | 'medium' | 'low';
+  note: string;
+}
+
+interface TriageFollowup {
+  type: string;
+  value: string;
+  source_article_id: string;
+  priority: 'high' | 'medium' | 'low';
+  notes: string;
+}
+
+interface TriageOutput {
+  triage_summary: {
+    articles_processed: number;
+    tier_1: number;
+    tier_2: number;
+    tier_3: number;
+    errors: number;
+  };
+  articles: TriageArticle[];
+  findings: TriageFinding[];
+  followups: TriageFollowup[];
+}
+
 /**
- * Synthesizes research results from retrieved document context using Claude.
- * Takes the original query, relevant document chunks, user answers to clarifying
- * questions, and optional prior conversation context for refinement queries.
+ * Triages retrieved articles against a research brief using the triage agent approach
+ * from the Research_agentic_tool system. Returns structured ResearchResult with
+ * direct OCR quotes, tier assignments, and follow-up leads.
  */
-export async function synthesize(
+export async function triage(
   query: string,
   context: DocumentContext[],
+  briefText: string,
   answers?: QuestionAnswer[],
   conversationContext?: ConversationContext
 ): Promise<ResearchResult> {
-  const contextText = context
+  if (context.length === 0) {
+    return {
+      summary: 'No articles were retrieved to triage. Try different search terms.',
+      findings: [],
+      sources: [],
+      relatedTopics: [],
+    };
+  }
+
+  const articlesText = context
     .map((doc, i) => {
       const meta = [
         doc.publication,
@@ -255,71 +349,88 @@ export async function synthesize(
       ]
         .filter(Boolean)
         .join(' | ');
-      return `[Source src_${i}] ${doc.title}${meta ? ` | ${meta}` : ''}:\n${doc.content}`;
+      return `--- Article [src_${i}] ---\nTitle: ${doc.title}${meta ? `\nMeta: ${meta}` : ''}\n\nOCR Text:\n${doc.content}`;
     })
-    .join('\n\n---\n\n');
+    .join('\n\n');
 
   const answersText =
     answers && answers.length > 0
-      ? `\n\nUser provided additional context:\n${answers
-          .map(
-            (a) =>
-              `- ${a.questionId}: ${Array.isArray(a.answer) ? a.answer.join(', ') : a.answer}`
-          )
+      ? `\n\nResearcher clarifications:\n${answers
+          .map((a) => `- ${a.questionId}: ${Array.isArray(a.answer) ? a.answer.join(', ') : a.answer}`)
           .join('\n')}`
       : '';
 
   const priorContextText = conversationContext
-    ? `\n\nPrior research context (do not repeat, build upon):\n` +
-      `Original query: "${conversationContext.originalQuery}"\n` +
-      `Previous summary: ${conversationContext.summary}`
+    ? `\n\nPrior research (do not repeat findings already covered):\nOriginal query: "${conversationContext.originalQuery}"\nPrevious summary: ${conversationContext.summary}`
     : '';
 
   const userMessage =
     `Research Query: ${query}${answersText}${priorContextText}\n\n` +
-    `Retrieved Documents (${context.length} found):\n${contextText || 'No documents found in corpus.'}`;
+    `Research Brief:\n${briefText}\n\n` +
+    `Articles to triage (${context.length} total):\n\n${articlesText}`;
 
   const text = await callLLM({
-    system: SYNTHESIS_PROMPT,
+    system: TRIAGE_SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 4096,
+    maxTokens: 6000,
   });
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Claude did not return valid JSON for synthesis');
+  if (!jsonMatch) throw new Error('Triage agent did not return valid JSON');
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  const parsed: TriageOutput = JSON.parse(jsonMatch[0]);
 
-  const sources: Source[] = context.map((doc, i) => ({
-    id: `src_${i}`,
-    title: doc.title,
-    author: doc.author,
-    publication: doc.publication,
-    date: doc.date,
-    url: doc.url,
-    type: doc.docType as 'papa-kilo' | 'newspaper' | 'web' | 'other',
-    excerpt: doc.content.slice(0, 200),
-  }));
+  // Build sources from triage articles (all tiers — let UI filter by tier)
+  const sources: Source[] = parsed.articles.map((a, i) => {
+    const originalDoc = context[parseInt(a.id.replace('src_', ''), 10)] ?? context[i];
+    const firstFinding = parsed.findings.find((f) => f.article_id === a.id);
+    return {
+      id: a.id,
+      title: a.title || originalDoc?.title || a.id,
+      author: a.author ?? undefined,
+      publication: a.source ?? originalDoc?.publication,
+      date: a.date ?? originalDoc?.date,
+      url: originalDoc?.url,
+      type: (originalDoc?.docType as Source['type']) ?? 'papakilo-live',
+      excerpt: firstFinding?.quote?.slice(0, 200) ?? originalDoc?.content?.slice(0, 200),
+    };
+  });
 
-  const findings = Array.isArray(parsed.findings)
-    ? parsed.findings.map((f: Record<string, unknown>, i: number) => ({
-        id: (f.id as string) ?? `f${i}`,
-        tier: (f.tier as 1 | 2 | 3) ?? 3,
-        title: (f.title as string) ?? '',
-        hawaiianTitle: (f.hawaiianTitle as string) ?? undefined,
-        content: (f.content as string) ?? '',
-        sources: Array.isArray(f.sources) ? (f.sources as string[]) : [],
-        confidence: (f.confidence as 'high' | 'medium' | 'low') ?? 'low',
-        keyExcerpts: Array.isArray(f.keyExcerpts) ? (f.keyExcerpts as string[]) : undefined,
-        placeNames: Array.isArray(f.placeNames) ? (f.placeNames as string[]) : undefined,
-        methods: Array.isArray(f.methods) ? (f.methods as string[]) : undefined,
-      }))
-    : [];
+  // Build findings from triage findings — inherit tier from parent article
+  const findings: Finding[] = parsed.findings.map((f, i) => {
+    const parentArticle = parsed.articles.find((a) => a.id === f.article_id);
+    const tier = (parentArticle?.tier as 1 | 2 | 3) ?? 3;
+    const ocrToConfidence = (clarity: string): 'high' | 'medium' | 'low' =>
+      clarity === 'high' ? 'high' : clarity === 'medium' ? 'medium' : 'low';
 
-  return {
-    summary: parsed.summary ?? '',
-    findings,
-    sources,
-    relatedTopics: Array.isArray(parsed.relatedTopics) ? parsed.relatedTopics : [],
-  };
+    return {
+      id: `f${String(i + 1).padStart(3, '0')}`,
+      tier,
+      title: f.priority,
+      hawaiianTitle: undefined,
+      content: `${f.note} [${f.article_id}]`,
+      sources: [f.article_id],
+      confidence: ocrToConfidence(f.ocr_clarity),
+      keyExcerpts: f.quote ? [f.quote] : undefined,
+      placeNames:
+        parentArticle?.region_mentions?.length ? parentArticle.region_mentions : undefined,
+      methods: f.tags?.length ? f.tags : undefined,
+    };
+  });
+
+  // Summary from triage stats
+  const s = parsed.triage_summary;
+  const summary =
+    `Triaged ${s.articles_processed} articles from the Papakilo Database: ` +
+    `${s.tier_1} high value, ${s.tier_2} medium value, ${s.tier_3} excluded as peripheral. ` +
+    (s.errors > 0 ? `${s.errors} articles could not be loaded. ` : '') +
+    `${parsed.findings.length} findings extracted with direct OCR quotes.`;
+
+  // Related topics from high-priority followups
+  const relatedTopics = parsed.followups
+    .filter((f) => f.priority === 'high' || f.priority === 'medium')
+    .map((f) => f.value)
+    .slice(0, 6);
+
+  return { summary, findings, sources, relatedTopics };
 }

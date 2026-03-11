@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     // URLs for redirects
     const loginUrl = new URL("/login", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000");
-    const dashboardUrl = new URL("/", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000");
+    const dashboardUrl = new URL("/dashboard", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000");
 
     try {
         // Step 1: Verify required parameters are present

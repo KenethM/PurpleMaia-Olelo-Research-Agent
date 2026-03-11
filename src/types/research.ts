@@ -61,6 +61,8 @@ export interface ResearchResult {
 export interface Source {
   id: string;
   title: string;
+  hawaiianTitle?: string;
+  englishTitle?: string;
   author?: string;
   publication?: string;
   date?: string;
@@ -71,10 +73,15 @@ export interface Source {
 
 export interface Finding {
   id: string;
+  tier: 1 | 2 | 3;
   title: string;
+  hawaiianTitle?: string;
   content: string;
   sources: string[]; // Source IDs
   confidence?: 'high' | 'medium' | 'low';
+  keyExcerpts?: string[];
+  placeNames?: string[];
+  methods?: string[];
 }
 
 export interface ResearchSession {

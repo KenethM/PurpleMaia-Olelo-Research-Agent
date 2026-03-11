@@ -141,30 +141,44 @@ const SYNTHESIS_PROMPT = `You are a Hawaiian research assistant synthesizing fin
 
 Respond with JSON in exactly this format:
 {
-  "summary": "string (2-3 paragraphs synthesizing key findings)",
+  "summary": "string (2-3 paragraphs synthesizing key findings, preserving Hawaiian terms with English translations in parentheses)",
   "findings": [
     {
       "id": "f1",
-      "title": "string",
-      "content": "string (detailed explanation with inline citations like [src_0])",
+      "tier": 1,
+      "title": "string (English title or description)",
+      "hawaiianTitle": "string (Hawaiian language title if present in source, otherwise omit)",
+      "content": "string (detailed explanation; every claim must include an inline citation like [src_0]; preserve Hawaiian text with English translation in parentheses)",
       "sources": ["src_0", "src_1"],
-      "confidence": "high" | "medium" | "low"
+      "confidence": "high" | "medium" | "low",
+      "keyExcerpts": ["string (verbatim Hawaiian or English excerpt from source, clearly legible only)"],
+      "placeNames": ["string (ahupuaʻa, moku, island, district names mentioned)"],
+      "methods": ["string (cultivation methods, practices, techniques described)"]
     }
   ],
   "relatedTopics": ["string"]
 }
 
-Guidelines:
-- Tier findings by confidence: high = multiple corroborating sources, medium = single strong source, low = partial or inferred
-- Preserve Hawaiian language terms with translations in parentheses on first use, e.g., ʻawa (kava)
-- Include specific details: physical descriptions, cultivation methods, place names (ahupuaʻa, moku), dates, authors
-- Every finding must reference at least one source using its src_N id
-- The summary should be accessible to a general audience while maintaining scholarly accuracy
-- relatedTopics should suggest 3-5 areas for further research
-- If no documents were found, clearly state this and provide context from general knowledge, marking confidence as "low"
-- Do not fabricate sources or citations
-- Sources with docType "papakilo-live" are live-scraped OCR text from historical Hawaiian newspapers — they may contain OCR noise and garbled characters; apply "medium" or "low" confidence unless content is clearly readable, and always include the source URL in your attribution when available
-- Never attempt to "clean up" or infer garbled OCR text — only report what is clearly legible
+Tiering rules — assign EVERY finding a tier:
+- tier 1 (HIGH VALUE): Multiple corroborating sources, high confidence, rich detail
+- tier 2 (MEDIUM VALUE): Single strong source, moderate detail or clarity
+- tier 3 (SUPPLEMENTARY): Partial, inferred, or OCR-degraded content, low confidence
+
+Citation rules — strictly enforced:
+- Every factual claim in "content" must have an inline [src_N] citation
+- Include the source URL in citations whenever available, e.g. "According to [src_0](url)"
+- Preserve Hawaiian language text exactly as it appears in the source, followed by English translation in parentheses
+- Do NOT fabricate sources or citations
+
+Additional guidelines:
+- Include physical descriptions, measurements, colors, textures when present in sources
+- Extract place names (ahupuaʻa, moku, island) into the placeNames array
+- Extract cultivation methods, preparation techniques, ceremonial practices into methods array
+- keyExcerpts: only include clearly legible text — never attempt to reconstruct garbled OCR
+- Sources with docType "papakilo-live" are live-scraped OCR — apply tier 2 or 3 unless content is clearly readable
+- The summary should synthesize across tiers and be accessible to a general audience
+- relatedTopics: suggest 3-5 areas for further research
+- If no documents were found, state this clearly and use tier 3 with confidence "low" for any general knowledge provided
 - If prior research context is provided, build upon it rather than repeating already-covered material`;
 
 /**
@@ -237,6 +251,7 @@ export async function synthesize(
         doc.publication,
         doc.author ? `by ${doc.author}` : null,
         doc.date,
+        doc.url ? `URL: ${doc.url}` : null,
       ]
         .filter(Boolean)
         .join(' | ');
@@ -286,9 +301,24 @@ export async function synthesize(
     excerpt: doc.content.slice(0, 200),
   }));
 
+  const findings = Array.isArray(parsed.findings)
+    ? parsed.findings.map((f: Record<string, unknown>, i: number) => ({
+        id: (f.id as string) ?? `f${i}`,
+        tier: (f.tier as 1 | 2 | 3) ?? 3,
+        title: (f.title as string) ?? '',
+        hawaiianTitle: (f.hawaiianTitle as string) ?? undefined,
+        content: (f.content as string) ?? '',
+        sources: Array.isArray(f.sources) ? (f.sources as string[]) : [],
+        confidence: (f.confidence as 'high' | 'medium' | 'low') ?? 'low',
+        keyExcerpts: Array.isArray(f.keyExcerpts) ? (f.keyExcerpts as string[]) : undefined,
+        placeNames: Array.isArray(f.placeNames) ? (f.placeNames as string[]) : undefined,
+        methods: Array.isArray(f.methods) ? (f.methods as string[]) : undefined,
+      }))
+    : [];
+
   return {
     summary: parsed.summary ?? '',
-    findings: Array.isArray(parsed.findings) ? parsed.findings : [],
+    findings,
     sources,
     relatedTopics: Array.isArray(parsed.relatedTopics) ? parsed.relatedTopics : [],
   };

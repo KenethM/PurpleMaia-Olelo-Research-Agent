@@ -6,7 +6,9 @@
       "Bash(test:*)",
       "Bash(npm run dev:*)",
       "Bash(npm run lint:*)",
-      "Bash(docker context ls:*)"
+      "Bash(docker context ls:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

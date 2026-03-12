@@ -8,6 +8,8 @@ import type { Source } from '@/types/research';
  */
 function getLaunchOptions() {
   const isLinux = process.platform === 'linux';
+  // NOTE: --single-process is intentionally excluded — it causes Chromium crashes
+  // on some Linux kernels and can cause page.fill() to hang indefinitely.
   const args = isLinux
     ? [
         '--no-sandbox',
@@ -16,7 +18,6 @@ function getLaunchOptions() {
         '--disable-gpu',
         '--no-first-run',
         '--no-zygote',
-        '--single-process',
       ]
     : [];
 
@@ -83,18 +84,47 @@ export interface PapakiloOptions {
 
 export async function searchPapakilo(term: string, signal?: AbortSignal): Promise<PapakiloSearchResult> {
   if (signal?.aborted) throw new Error('Aborted');
+
+  // Papakilo uses Greenstone CMS. Try the direct query URL first — it avoids
+  // form interaction entirely and is more reliable on headless servers.
+  // Greenstone search URL: ?a=q&q=TERM&t=0&l=en&w=text
+  const encodedTerm = encodeURIComponent(term);
+  const directSearchUrl =
+    `https://www.papakilodatabase.com/pdnupepa/cgi-bin/pdnupepa?a=q&q=${encodedTerm}&t=0&l=en&w=text`;
+
   const browser = await chromium.launch(getLaunchOptions());
   try {
     const page = await browser.newPage();
-    const searchUrl =
-      'https://www.papakilodatabase.com/pdnupepa/cgi-bin/pdnupepa?a=p&p=home';
 
-    await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(2000);
+    // Try direct query URL (no form interaction required)
+    console.log(`[papakilo] Searching via direct URL for term: "${term}"`);
+    let loadedViaDirectUrl = false;
+    try {
+      await page.goto(directSearchUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      await page.waitForTimeout(3000);
+      // Confirm we got search results (not a redirect to home)
+      const hasResults = await page.evaluate(() =>
+        document.querySelectorAll('a[href*="a=d&d="]').length > 0 ||
+        /Results?\s+\d+\s+to\s+\d+\s+of/i.test(document.body.innerText)
+      );
+      loadedViaDirectUrl = hasResults;
+      console.log(`[papakilo] Direct URL approach: hasResults=${hasResults}`);
+    } catch (err) {
+      console.warn('[papakilo] Direct URL navigation failed, will try form approach:', err);
+    }
 
-    await page.fill('#homepagesearchinputtxq', term);
-    await page.keyboard.press('Enter');
-    await page.waitForTimeout(5000);
+    // Fallback: load the homepage and fill the search form
+    if (!loadedViaDirectUrl) {
+      const homeUrl = 'https://www.papakilodatabase.com/pdnupepa/cgi-bin/pdnupepa?a=p&p=home';
+      console.log('[papakilo] Falling back to form-fill approach');
+      await page.goto(homeUrl, { waitUntil: 'load', timeout: 60000 });
+
+      // Wait explicitly for the search input — this was the source of previous timeouts
+      await page.waitForSelector('#homepagesearchinputtxq', { timeout: 60000 });
+      await page.fill('#homepagesearchinputtxq', term);
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(6000);
+    }
 
     // Extract total result count
     const totalResults = await page.evaluate(() => {
@@ -123,6 +153,8 @@ export async function searchPapakilo(term: string, signal?: AbortSignal): Promis
       return results;
     });
 
+    console.log(`[papakilo] Found ${totalResults} results, ${rawArticles.length} article links for "${term}"`);
+
     return {
       term,
       totalResults,
@@ -145,8 +177,8 @@ export async function fetchArticleContent(url: string, signal?: AbortSignal): Pr
   const browser = await chromium.launch(getLaunchOptions());
   try {
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(5000);
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForTimeout(4000);
 
     // Try clicking the Text tab to reveal OCR content
     try {

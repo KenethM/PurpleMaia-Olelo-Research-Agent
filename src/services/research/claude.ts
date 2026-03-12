@@ -58,7 +58,9 @@ async function callLLM(opts: {
     }
 
     const data = await res.json();
-    const text: string = data?.choices?.[0]?.message?.content;
+    const msg = data?.choices?.[0]?.message;
+    // Some reasoning models return null content with reasoning_content (e.g. gpt-oss-120b)
+    const text: string = msg?.content ?? msg?.reasoning_content;
     if (!text) throw new Error('DeepSeek returned no content');
     return text;
   }

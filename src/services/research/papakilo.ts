@@ -15,18 +15,22 @@ const FETCH_HEADERS = {
  */
 function getLaunchOptions() {
   const isLinux = process.platform === 'linux';
-  // NOTE: --single-process is intentionally excluded — it causes Chromium crashes
-  // on some Linux kernels and can cause page.fill() to hang indefinitely.
-  const args = isLinux
-    ? [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--no-first-run',
-        '--no-zygote',
-      ]
-    : [];
+  // --disable-blink-features=AutomationControlled: hides Chromium's automation flag
+  // which Cloudflare and other bot-detection systems check.
+  // --single-process is excluded — causes crashes/hangs on Linux.
+  const args = [
+    '--disable-blink-features=AutomationControlled',
+    ...(isLinux
+      ? [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--no-first-run',
+          '--no-zygote',
+        ]
+      : []),
+  ];
 
   // Allow explicit override (only if the file actually exists)
   const override = process.env.CHROMIUM_EXECUTABLE_PATH;
@@ -53,6 +57,27 @@ function getLaunchOptions() {
 
   // macOS/Windows: use system Chrome
   return { headless: true as const, channel: 'chrome' as const, args };
+}
+
+/**
+ * Apply stealth settings to a page to bypass Cloudflare bot detection.
+ * Cloudflare checks navigator.webdriver, viewport size, and request headers.
+ */
+async function applyStealthSettings(page: import('playwright').Page): Promise<void> {
+  // Hide the automation flag that Cloudflare checks
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    // Spoof plugins array (empty in headless)
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+  });
+
+  await page.setViewportSize({ width: 1366, height: 768 });
+
+  await page.setExtraHTTPHeaders({
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -259,11 +284,12 @@ export async function searchPapakilo(term: string, signal?: AbortSignal): Promis
     console.warn(`[papakilo] HTTP search failed for "${term}", falling back to Playwright:`, err);
   }
 
-  // Fallback: Playwright browser (slower but handles JS-rendered pages)
+  // Fallback: Playwright browser (slower but handles JS-rendered/Cloudflare-protected pages)
   const encodedTerm = encodeURIComponent(term);
   const browser = await chromium.launch(getLaunchOptions());
   try {
     const page = await browser.newPage();
+    await applyStealthSettings(page);
 
     // Try direct Greenstone query URL first — avoids form interaction
     let usedDirectUrl = false;
@@ -281,7 +307,10 @@ export async function searchPapakilo(term: string, signal?: AbortSignal): Promis
 
     if (!usedDirectUrl) {
       await page.goto(`${PAPAKILO_BASE}?a=p&p=home`, { waitUntil: 'load', timeout: 60000 });
-      await page.waitForSelector('#homepagesearchinputtxq', { timeout: 60000 });
+      // Wait for either the search input OR the Cloudflare challenge to resolve.
+      // Cloudflare's "Just a moment..." page typically clears within 5s, after which
+      // the real page loads and the search input appears.
+      await page.waitForSelector('#homepagesearchinputtxq', { timeout: 90000 });
       await page.fill('#homepagesearchinputtxq', term);
       await page.keyboard.press('Enter');
       await page.waitForTimeout(6000);
@@ -335,6 +364,7 @@ export async function fetchArticleContent(url: string, signal?: AbortSignal): Pr
   const browser = await chromium.launch(getLaunchOptions());
   try {
     const page = await browser.newPage();
+    await applyStealthSettings(page);
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(4000);
 

@@ -6,7 +6,6 @@ import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
@@ -136,7 +135,7 @@ export function ResearchSidebar({ onNavigate }: ResearchSidebarProps = {}) {
       </div>
 
       {/* Session list — scrollable, footer stays pinned */}
-      <ScrollArea className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="p-2">
           {isLoading ? (
             <p className="text-xs text-muted-foreground text-center py-4">Loading…</p>
@@ -202,7 +201,7 @@ export function ResearchSidebar({ onNavigate }: ResearchSidebarProps = {}) {
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Footer — user info + settings */}
       <div className="border-t p-3">

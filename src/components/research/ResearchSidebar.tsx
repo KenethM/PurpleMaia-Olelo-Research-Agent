@@ -135,8 +135,8 @@ export function ResearchSidebar({ onNavigate }: ResearchSidebarProps = {}) {
         </div>
       </div>
 
-      {/* Session list */}
-      <ScrollArea className="flex-1">
+      {/* Session list — scrollable, footer stays pinned */}
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-2">
           {isLoading ? (
             <p className="text-xs text-muted-foreground text-center py-4">Loading…</p>

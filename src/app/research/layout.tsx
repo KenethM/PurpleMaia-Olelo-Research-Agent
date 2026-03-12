@@ -18,7 +18,7 @@ export default function ResearchLayout({ children }: { children: React.ReactNode
 
       {/* Mobile sidebar — sheet drawer */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-72">
+        <SheetContent side="left" className="p-0 w-72 h-full flex flex-col">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <ResearchSidebar onNavigate={() => setSidebarOpen(false)} />
         </SheetContent>

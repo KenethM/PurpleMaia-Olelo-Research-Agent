@@ -7,18 +7,20 @@ import type { Source } from '@/types/research';
  * at a known path.  Set CHROMIUM_EXECUTABLE_PATH to override the auto-detection.
  */
 function getLaunchOptions() {
-  const executablePath = process.env.CHROMIUM_EXECUTABLE_PATH;
   const isLinux = process.platform === 'linux';
   const args = isLinux
     ? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     : [];
 
-  if (executablePath) {
-    return { headless: true as const, executablePath, args };
+  // Allow explicit override (only if the file actually exists)
+  const override = process.env.CHROMIUM_EXECUTABLE_PATH;
+  if (override) {
+    const { existsSync } = require('fs') as typeof import('fs');
+    if (existsSync(override)) return { headless: true as const, executablePath: override, args };
   }
 
+  // On Linux, check common system paths; otherwise let playwright use its own downloaded browser
   if (isLinux) {
-    // Common Chromium install paths on Ubuntu/Debian
     const { existsSync } = require('fs') as typeof import('fs');
     const candidates = [
       '/usr/bin/chromium-browser',
@@ -29,10 +31,11 @@ function getLaunchOptions() {
     for (const p of candidates) {
       if (existsSync(p)) return { headless: true as const, executablePath: p, args };
     }
-    // Nothing found — still try channel so the error message is clear
-    return { headless: true as const, channel: 'chrome' as const, args };
+    // Fall back to playwright's bundled browser (downloaded by postinstall)
+    return { headless: true as const, args };
   }
 
+  // macOS/Windows: use system Chrome
   return { headless: true as const, channel: 'chrome' as const, args };
 }
 

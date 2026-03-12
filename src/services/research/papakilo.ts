@@ -9,7 +9,15 @@ import type { Source } from '@/types/research';
 function getLaunchOptions() {
   const isLinux = process.platform === 'linux';
   const args = isLinux
-    ? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    ? [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+      ]
     : [];
 
   // Allow explicit override (only if the file actually exists)
@@ -181,6 +189,9 @@ export async function researchWithPapakilo(
   const maxTerms = options.maxTerms ?? 3;
   const maxArticlesPerTerm = options.maxArticlesPerTerm ?? 3;
 
+  console.log('[papakilo] Starting search with terms:', searchTerms.slice(0, maxTerms));
+  console.log('[papakilo] Launch options:', JSON.stringify(getLaunchOptions()));
+
   const collectedArticles: PapakiloArticleContent[] = [];
   let totalFound = 0;
 
@@ -198,15 +209,15 @@ export async function researchWithPapakilo(
         try {
           const content = await fetchArticleContent(article.url);
           collectedArticles.push(content);
-        } catch {
-          // Skip articles that fail to load
+        } catch (err) {
+          console.warn('[papakilo] Failed to fetch article:', article.url, err);
         }
 
         // Respectful delay between article fetches
         await sleep(1000);
       }
-    } catch {
-      // Skip terms that fail entirely
+    } catch (err) {
+      console.warn('[papakilo] Failed to search term:', term, err);
     }
 
     // Delay between search terms

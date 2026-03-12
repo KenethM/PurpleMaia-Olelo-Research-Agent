@@ -110,7 +110,7 @@ export function ResearchSidebar({ onNavigate }: ResearchSidebarProps = {}) {
   );
 
   return (
-    <div className="flex flex-col h-full border-r bg-muted/20">
+ <div className="flex flex-col h-full w-full border-r bg-muted/20">
       {/* New Research */}
       <div className="p-3 border-b">
         <Button asChild className="w-full" size="sm">

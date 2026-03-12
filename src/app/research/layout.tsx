@@ -12,7 +12,8 @@ export default function ResearchLayout({ children }: { children: React.ReactNode
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Desktop sidebar — hidden on mobile */}
-      <aside className="hidden md:flex w-64 flex-shrink-0 h-full">
+      <aside className="hidden md:flex w-64 flex-shrink-0 h-full overflow-hidden">
+
         <ResearchSidebar />
       </aside>
 

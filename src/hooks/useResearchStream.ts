@@ -28,50 +28,57 @@ export function useResearchStream({ sessionId, enabled = true }: UseResearchStre
       try {
         const streamEvent: StreamEvent = JSON.parse(event.data);
 
-        switch (streamEvent.type) {
-          case 'activity':
-            // Add activity message to stream
-            dispatch({
-              type: 'ADD_ACTIVITY',
-              payload: streamEvent.data as ActivityMessage,
-            });
-            break;
+        if (!streamEvent || typeof streamEvent.type !== 'string') {
+          console.warn('[stream] Received malformed event:', event.data);
+          return;
+        }
 
-          case 'result':
-            // Update results progressively
-            dispatch({
-              type: 'UPDATE_RESULTS',
-              payload: streamEvent.data as Partial<ResearchResult>,
-            });
+        switch (streamEvent.type) {
+          case 'activity': {
+            const activity = streamEvent.data as ActivityMessage;
+            if (!activity || typeof activity.type !== 'string') break;
+            dispatch({ type: 'ADD_ACTIVITY', payload: activity });
             break;
+          }
+
+          case 'result': {
+            const result = streamEvent.data as Partial<ResearchResult>;
+            if (!result || typeof result !== 'object') break;
+            dispatch({ type: 'UPDATE_RESULTS', payload: result });
+            break;
+          }
 
           case 'complete':
-            // Research complete
             dispatch({ type: 'SET_STATUS', payload: 'complete' });
             eventSource.close();
             break;
 
-          case 'error':
-            // Handle error
-            const errorData = streamEvent.data as { error: string };
-            dispatch({ type: 'SET_ERROR', payload: errorData.error });
+          case 'error': {
+            const errorData = streamEvent.data as { error?: string };
+            dispatch({
+              type: 'SET_ERROR',
+              payload: typeof errorData?.error === 'string' ? errorData.error : 'Research failed',
+            });
             eventSource.close();
             break;
+          }
 
-          case 'questions':
-            // Received clarifying questions mid-research (edge case)
+          case 'questions': {
+            const questions = streamEvent.data;
+            if (!Array.isArray(questions)) break;
             dispatch({
               type: 'ADD_CLARIFYING_QUESTIONS',
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              payload: streamEvent.data as any,
+              payload: questions as any,
             });
             break;
+          }
 
           default:
-            console.warn('Unknown stream event type:', streamEvent);
+            console.warn('[stream] Unknown stream event type:', streamEvent.type);
         }
       } catch (error) {
-        console.error('Error parsing stream event:', error);
+        console.error('[stream] Error parsing stream event:', error);
       }
     };
 

@@ -122,13 +122,23 @@ export async function refine(
  * 6. Persist — save results to database
  * 7. Complete — signal completion
  */
-export async function execute(sessionId: string, stream: ResearchStream): Promise<void> {
+export async function execute(
+  sessionId: string,
+  stream: ResearchStream,
+  signal?: AbortSignal
+): Promise<void> {
+  const checkAborted = () => {
+    if (signal?.aborted) throw new Error('Research cancelled');
+  };
+
   try {
     const session = await sessionStore.getSessionById(sessionId);
     if (!session) {
       stream.sendError('Session not found');
       return;
     }
+
+    checkAborted();
 
     // Load conversation context if this is a refinement session
     const conversationContext = await sessionStore.getConversationContext(sessionId);
@@ -140,6 +150,7 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
       conversationContext: conversationContext ?? undefined,
     });
     sendActivity(stream, 'thinking', `Identified ${analysis.searchTerms.length} search terms`);
+    checkAborted();
     await sleep(500);
 
     // Build embedding query — combine original query with answer context for richer search
@@ -173,7 +184,7 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
             maxTerms: researchConfig.papakiloMaxTerms,
             maxArticlesPerTerm: 3,
             timeoutMs: researchConfig.papakiloTimeoutMs,
-          }),
+          }, signal),
           sleep(researchConfig.papakiloTimeoutMs).then(() => ({
             articles: [],
             sources: [],
@@ -276,9 +287,13 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
     sendActivity(stream, 'complete', 'Research complete!');
     stream.sendComplete();
   } catch (err) {
+    if (signal?.aborted) {
+      console.log(`[orchestrator] Research cancelled for session ${sessionId}`);
+      return; // Client disconnected — don't try to write to the stream
+    }
     console.error(`[orchestrator] Error executing research for session ${sessionId}:`, err);
     const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-    await sessionStore.saveError(sessionId, errorMessage);
+    await sessionStore.saveError(sessionId, errorMessage).catch(() => {}); // best-effort
     stream.sendError(errorMessage);
   }
 }

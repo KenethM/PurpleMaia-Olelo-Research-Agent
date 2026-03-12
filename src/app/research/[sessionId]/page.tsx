@@ -48,14 +48,19 @@ export default function SessionDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/research/${sessionId}`, { credentials: 'include' })
+    const controller = new AbortController();
+    fetch(`/api/research/${sessionId}`, { credentials: 'include', signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to load session');
         const data = await res.json();
         setSession(data.session);
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => {
+        if (err.name === 'AbortError') return; // Navigated away — ignore
+        setError(err.message);
+      })
       .finally(() => setIsLoading(false));
+    return () => controller.abort();
   }, [sessionId]);
 
   const handleDelete = async () => {

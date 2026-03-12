@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ export default function ResearchHistoryPage() {
   const [sessions, setSessions] = useState<ResearchSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sessionsRef = useRef<ResearchSession[]>([]);
 
   useEffect(() => {
     fetchHistory();
@@ -24,15 +25,17 @@ export default function ResearchHistoryPage() {
     return () => window.removeEventListener('focus', onFocus);
   }, []);
 
-  // Poll every 5s while any session is still in-progress
+  // Poll every 5s while any session is still in-progress.
+  // Use a ref so the interval is stable and doesn't recreate on every state change.
   useEffect(() => {
-    const hasActive = sessions.some(
-      (s) => s.status === 'researching' || s.status === 'clarifying'
-    );
-    if (!hasActive) return;
-    const interval = setInterval(fetchHistory, 5000);
+    const interval = setInterval(() => {
+      const hasActive = sessionsRef.current.some(
+        (s) => s.status === 'researching' || s.status === 'clarifying'
+      );
+      if (hasActive) fetchHistory();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [sessions]);
+  }, []);
 
   const fetchHistory = async () => {
     try {
@@ -46,7 +49,9 @@ export default function ResearchHistoryPage() {
       }
 
       const data = await response.json();
-      setSessions(data.sessions || []);
+      const s = data.sessions || [];
+      setSessions(s);
+      sessionsRef.current = s;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

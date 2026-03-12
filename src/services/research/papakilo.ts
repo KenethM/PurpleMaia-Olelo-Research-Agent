@@ -81,7 +81,8 @@ export interface PapakiloOptions {
 // T006: searchPapakilo — search the Papakilo newspaper collection
 // ---------------------------------------------------------------------------
 
-export async function searchPapakilo(term: string): Promise<PapakiloSearchResult> {
+export async function searchPapakilo(term: string, signal?: AbortSignal): Promise<PapakiloSearchResult> {
+  if (signal?.aborted) throw new Error('Aborted');
   const browser = await chromium.launch(getLaunchOptions());
   try {
     const page = await browser.newPage();
@@ -136,7 +137,8 @@ export async function searchPapakilo(term: string): Promise<PapakiloSearchResult
 // T007: fetchArticleContent — extract OCR text from a single article
 // ---------------------------------------------------------------------------
 
-export async function fetchArticleContent(url: string): Promise<PapakiloArticleContent> {
+export async function fetchArticleContent(url: string, signal?: AbortSignal): Promise<PapakiloArticleContent> {
+  if (signal?.aborted) throw new Error('Aborted');
   const articleIdMatch = url.match(/d=([A-Z0-9\-.]+)/i);
   const articleId = articleIdMatch ? articleIdMatch[1] : 'unknown';
 
@@ -184,7 +186,8 @@ export async function fetchArticleContent(url: string): Promise<PapakiloArticleC
 
 export async function researchWithPapakilo(
   searchTerms: string[],
-  options: PapakiloOptions = {}
+  options: PapakiloOptions = {},
+  signal?: AbortSignal
 ): Promise<{ articles: PapakiloArticleContent[]; sources: Source[]; totalFound: number }> {
   const maxTerms = options.maxTerms ?? 3;
   const maxArticlesPerTerm = options.maxArticlesPerTerm ?? 3;
@@ -198,18 +201,21 @@ export async function researchWithPapakilo(
   const termsToSearch = searchTerms.slice(0, maxTerms);
 
   for (let i = 0; i < termsToSearch.length; i++) {
+    if (signal?.aborted) break;
     const term = termsToSearch[i];
     try {
-      const searchResult = await searchPapakilo(term);
+      const searchResult = await searchPapakilo(term, signal);
       totalFound += searchResult.totalResults;
 
       const topArticles = searchResult.articles.slice(0, maxArticlesPerTerm);
 
       for (const article of topArticles) {
+        if (signal?.aborted) break;
         try {
-          const content = await fetchArticleContent(article.url);
+          const content = await fetchArticleContent(article.url, signal);
           collectedArticles.push(content);
         } catch (err) {
+          if (signal?.aborted) break;
           console.warn('[papakilo] Failed to fetch article:', article.url, err);
         }
 
@@ -217,6 +223,7 @@ export async function researchWithPapakilo(
         await sleep(1000);
       }
     } catch (err) {
+      if (signal?.aborted) break;
       console.warn('[papakilo] Failed to search term:', term, err);
     }
 

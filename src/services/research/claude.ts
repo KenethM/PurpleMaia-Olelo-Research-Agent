@@ -237,21 +237,24 @@ export async function analyzeQuery(
 ): Promise<QueryAnalysis> {
   const { answers, conversationContext } = options ?? {};
 
-  let userMessage = query;
+  let userMessage: string;
+
+  if (conversationContext) {
+    userMessage =
+      `<prior_context>\n` +
+      `Original query: ${conversationContext.originalQuery}\n` +
+      `Summary: ${conversationContext.summary}\n` +
+      `</prior_context>\n\n` +
+      `<new_query>${query}</new_query>`;
+  } else {
+    userMessage = `<query>${query}</query>`;
+  }
 
   if (answers && answers.length > 0) {
     const answersText = answers
       .map((a) => `- ${a.questionId}: ${Array.isArray(a.answer) ? a.answer.join(', ') : a.answer}`)
       .join('\n');
-    userMessage += `\n\nUser clarifications:\n${answersText}`;
-  }
-
-  if (conversationContext) {
-    userMessage =
-      `Prior research context:\n` +
-      `Original query: "${conversationContext.originalQuery}"\n` +
-      `Summary: ${conversationContext.summary}\n\n` +
-      `New follow-up query: ${query}`;
+    userMessage += `\n\n<clarifications>\n${answersText}\n</clarifications>`;
   }
 
   const text = await callLLM({
@@ -261,16 +264,27 @@ export async function analyzeQuery(
   });
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Claude did not return valid JSON for query analysis');
+  if (!jsonMatch) throw new Error('LLM did not return valid JSON for query analysis');
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch {
+    throw new Error('LLM returned malformed JSON for query analysis');
+  }
+
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new Error('LLM query analysis response was not an object');
+  }
 
   return {
     needsClarification: Boolean(parsed.needsClarification),
-    questions: parsed.questions ?? undefined,
-    searchTerms: Array.isArray(parsed.searchTerms) ? parsed.searchTerms : [],
+    questions: Array.isArray(parsed.questions) ? parsed.questions : undefined,
+    searchTerms: Array.isArray(parsed.searchTerms)
+      ? (parsed.searchTerms as string[]).filter((t) => typeof t === 'string')
+      : [],
     isOffTopic: conversationContext ? Boolean(parsed.isOffTopic) : undefined,
-    offTopicReason: parsed.offTopicReason ?? undefined,
+    offTopicReason: typeof parsed.offTopicReason === 'string' ? parsed.offTopicReason : undefined,
   };
 }
 
@@ -378,7 +392,24 @@ export async function triage(
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Triage agent did not return valid JSON');
 
-  const parsed: TriageOutput = JSON.parse(jsonMatch[0]);
+  let parsed: TriageOutput;
+  try {
+    parsed = JSON.parse(jsonMatch[0]) as TriageOutput;
+  } catch {
+    throw new Error('Triage agent returned malformed JSON');
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Triage agent response was not a valid object');
+  }
+
+  // Ensure required arrays exist to prevent downstream crashes
+  if (!Array.isArray(parsed.articles)) parsed.articles = [];
+  if (!Array.isArray(parsed.findings)) parsed.findings = [];
+  if (!Array.isArray(parsed.followups)) parsed.followups = [];
+  if (!parsed.triage_summary || typeof parsed.triage_summary !== 'object') {
+    parsed.triage_summary = { articles_processed: 0, tier_1: 0, tier_2: 0, tier_3: 0, errors: 0 };
+  }
 
   // Build sources from triage articles (all tiers — let UI filter by tier)
   const sources: Source[] = parsed.articles.map((a, i) => {

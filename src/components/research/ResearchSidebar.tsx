@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
@@ -45,12 +45,23 @@ export function ResearchSidebar({ onNavigate }: ResearchSidebarProps = {}) {
   const [feedbackIds, setFeedbackIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const sessionsRef = useRef<ResearchSession[]>([]);
 
   const fetchSessions = () => {
     fetch('/api/research/history', { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : { sessions: [], feedbackSessionIds: [] }))
+      .then((res) => {
+        if (!res.ok) {
+          if (res.status !== 401) {
+            console.warn('[sidebar] Failed to fetch sessions:', res.status);
+          }
+          return { sessions: [], feedbackSessionIds: [] };
+        }
+        return res.json();
+      })
       .then((data) => {
-        setSessions(data.sessions ?? []);
+        const s = data.sessions ?? [];
+        setSessions(s);
+        sessionsRef.current = s;
         setFeedbackIds(new Set(data.feedbackSessionIds ?? []));
       })
       .finally(() => setIsLoading(false));
@@ -67,15 +78,17 @@ export function ResearchSidebar({ onNavigate }: ResearchSidebarProps = {}) {
     return () => window.removeEventListener('research-started', fetchSessions);
   }, []);
 
-  // Poll every 3s while any session is actively processing
+  // Poll every 3s while any session is actively processing.
+  // Use a ref so the interval is stable and doesn't recreate on every state change.
   useEffect(() => {
-    const hasActive = sessions.some(
-      (s) => s.status === 'researching' || s.status === 'clarifying'
-    );
-    if (!hasActive) return;
-    const interval = setInterval(fetchSessions, 3000);
+    const interval = setInterval(() => {
+      const hasActive = sessionsRef.current.some(
+        (s) => s.status === 'researching' || s.status === 'clarifying'
+      );
+      if (hasActive) fetchSessions();
+    }, 3000);
     return () => clearInterval(interval);
-  }, [sessions]);
+  }, []);
 
   const handleDelete = async (e: React.MouseEvent, sessionId: string) => {
     e.preventDefault();

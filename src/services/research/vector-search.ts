@@ -47,7 +47,11 @@ export async function search(
     return [];
   }
 
-  const vectorStr = `[${queryEmbedding.join(',')}]`;
+  // Validate embedding values — NaN or Infinity would produce invalid SQL
+  const sanitized = queryEmbedding.map((v) =>
+    typeof v === 'number' && isFinite(v) ? v : 0
+  );
+  const vectorStr = `[${sanitized.join(',')}]`;
 
   // pgvector cosine distance: <=> (0 = identical, 2 = opposite)
   // similarity = 1 - distance

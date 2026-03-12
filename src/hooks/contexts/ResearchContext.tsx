@@ -171,12 +171,12 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ query }),
       });
 
-      // Notify the sidebar to refresh its session list (a session was created even if it errors)
-      window.dispatchEvent(new Event('research-started'));
-
       if (!response.ok) {
         throw new Error('Failed to initiate research');
       }
+
+      // Notify the sidebar to refresh its session list only on success
+      window.dispatchEvent(new Event('research-started'));
 
       const data = await response.json();
 

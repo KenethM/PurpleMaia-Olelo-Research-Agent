@@ -191,23 +191,38 @@ export async function getConversationContext(
 
 function parseJsonb(value: unknown): any {
   if (!value) return undefined;
-  if (typeof value === 'string') return JSON.parse(value);
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      console.warn('[session-store] Failed to parse JSONB string:', value?.toString().slice(0, 80));
+      return undefined;
+    }
+  }
   return value; // pg driver already parsed JSONB to object
+}
+
+function safeDate(value: unknown): Date {
+  try {
+    return new Date(value as string);
+  } catch {
+    return new Date();
+  }
 }
 
 function mapRowToSession(row: any): ResearchSession {
   return {
     id: row.id,
     userId: row.user_id,
-    query: row.query,
-    status: row.status,
-    clarifyingQuestions: parseJsonb(row.questions),
-    answers: parseJsonb(row.answers),
+    query: row.query ?? '',
+    status: row.status ?? 'error',
+    clarifyingQuestions: parseJsonb(row.questions) ?? undefined,
+    answers: parseJsonb(row.answers) ?? undefined,
     activityStream: [], // Activity is streamed in real-time, not persisted
-    results: parseJsonb(row.results),
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
-    completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
+    results: parseJsonb(row.results) ?? undefined,
+    createdAt: safeDate(row.created_at),
+    updatedAt: safeDate(row.updated_at),
+    completedAt: row.completed_at ? safeDate(row.completed_at) : undefined,
     error: row.error ?? undefined,
   };
 }

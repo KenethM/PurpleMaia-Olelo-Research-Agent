@@ -20,11 +20,14 @@ export async function GET(
 
   const { sessionId } = await params;
 
-  const stream = createResearchStream();
+  // AbortController lets us cancel the orchestrator when the client disconnects.
+  const abortController = new AbortController();
+  const stream = createResearchStream(() => abortController.abort());
 
   // Execute the research pipeline asynchronously — don't await.
   // Results stream to the client via SSE as the pipeline progresses.
-  orchestrator.execute(sessionId, stream).catch((err) => {
+  orchestrator.execute(sessionId, stream, abortController.signal).catch((err) => {
+    if (abortController.signal.aborted) return; // Client disconnected — expected
     console.error('[stream] Orchestrator execution error:', err);
     stream.sendError('Research pipeline failed');
   });

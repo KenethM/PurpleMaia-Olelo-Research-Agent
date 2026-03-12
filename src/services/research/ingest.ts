@@ -43,18 +43,30 @@ export async function ingestDocument(doc: IngestDocumentInput): Promise<string> 
   // 3. Generate embeddings for each chunk
   const embeddings = await embedBatch(chunks);
 
-  // 4. Insert chunks with embeddings
-  for (let i = 0; i < chunks.length; i++) {
+  // 4. Insert chunks with embeddings — rollback document if any chunk fails
+  try {
+    for (let i = 0; i < chunks.length; i++) {
+      await db
+        .insertInto('document_chunks' as any)
+        .values({
+          document_id: documentId,
+          chunk_index: i,
+          content: chunks[i],
+          // NOTE: embedding is null when using stub — pgvector column accepts null
+          embedding: embeddings[i].every((v) => v === 0) ? null : `[${embeddings[i].join(',')}]`,
+        })
+        .execute();
+    }
+  } catch (err) {
+    // Remove the document to avoid orphaned records with partial chunks
     await db
-      .insertInto('document_chunks' as any)
-      .values({
-        document_id: documentId,
-        chunk_index: i,
-        content: chunks[i],
-        // NOTE: embedding is null when using stub — pgvector column accepts null
-        embedding: embeddings[i].every((v) => v === 0) ? null : `[${embeddings[i].join(',')}]`,
-      })
-      .execute();
+      .deleteFrom('documents' as any)
+      .where('id', '=', documentId)
+      .execute()
+      .catch(() => {}); // best-effort cleanup
+    throw new Error(
+      `[ingest] Chunk insertion failed for "${doc.title}" — document rolled back. Original error: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
 
   console.log(`[ingest] Ingested document "${doc.title}" with ${chunks.length} chunks`);

@@ -6,33 +6,43 @@ export interface ResearchStream {
   sendComplete(): void;
   sendError(error: string): void;
   getReadableStream(): ReadableStream;
+  isClosed(): boolean;
 }
 
 /**
  * Creates an SSE stream for pushing research activity to the client.
- * Fully implemented — reuses the existing SSE pattern from the app.
+ * Accepts an optional onCancel callback invoked when the client disconnects,
+ * allowing the orchestrator to abort in-flight work.
  */
-export function createResearchStream(): ResearchStream {
+export function createResearchStream(onCancel?: () => void): ResearchStream {
   const encoder = new TextEncoder();
   let controller: ReadableStreamDefaultController | null = null;
+  let closed = false;
 
   const stream = new ReadableStream({
     start(c) {
       controller = c;
     },
+    cancel() {
+      closed = true;
+      onCancel?.();
+    },
   });
 
   function send(data: unknown) {
-    if (!controller) return;
+    if (!controller || closed) return;
     try {
       const message = `data: ${JSON.stringify(data)}\n\n`;
       controller.enqueue(encoder.encode(message));
     } catch {
       // Stream may have been closed by the client
+      closed = true;
     }
   }
 
   function close() {
+    if (closed) return;
+    closed = true;
     try {
       controller?.close();
     } catch {
@@ -61,6 +71,10 @@ export function createResearchStream(): ResearchStream {
 
     getReadableStream() {
       return stream;
+    },
+
+    isClosed() {
+      return closed;
     },
   };
 }

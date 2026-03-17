@@ -230,7 +230,12 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
       }
     }
 
-    // Step 5: Triage articles against research brief using the triage agent approach
+    // Step 5: Triage articles against research brief — start web search in parallel
+    sendActivity(stream, 'searching', 'Searching the web for additional context...', {
+      source: 'Web',
+    });
+    const webSearchPromise = claude.searchWeb(session.query);
+
     sendActivity(stream, 'analyzing', 'Triaging articles against research brief...');
 
     const vectorContext = vectorResults.map((r) => ({
@@ -258,19 +263,31 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
     const briefText = loadBrief(briefType);
     sendActivity(stream, 'analyzing', `Using research brief: ${briefType}`);
 
-    const researchResult = await claude.triage(
-      session.query,
-      mergedContext,
-      briefText,
-      session.answers,
-      conversationContext ?? undefined
-    );
+    const [researchResult, webResults] = await Promise.all([
+      claude.triage(
+        session.query,
+        mergedContext,
+        briefText,
+        session.answers,
+        conversationContext ?? undefined
+      ),
+      webSearchPromise,
+    ]);
+
+    if (webResults.length > 0) {
+      sendActivity(stream, 'found', `Found ${webResults.length} web results`, {
+        source: 'Web',
+        count: webResults.length,
+      });
+    }
+
+    const finalResult = { ...researchResult, webResults: webResults.length > 0 ? webResults : undefined };
 
     // Send progressive result
-    stream.sendResult(researchResult);
+    stream.sendResult(finalResult);
 
     // Step 6: Persist results
-    await sessionStore.saveResults(sessionId, researchResult);
+    await sessionStore.saveResults(sessionId, finalResult);
 
     // Step 7: Complete
     sendActivity(stream, 'complete', 'Research complete!');

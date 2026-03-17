@@ -51,11 +51,18 @@ export interface QuestionAnswer {
   answer: string | string[];
 }
 
+export interface WebResult {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
 export interface ResearchResult {
   summary: string;
   sources: Source[];
   findings: Finding[];
   relatedTopics?: string[];
+  webResults?: WebResult[];
 }
 
 export interface Source {

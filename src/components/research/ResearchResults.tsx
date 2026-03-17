@@ -13,7 +13,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileText, ExternalLink, Copy, CheckCircle2, MapPin, BookOpen, Quote } from 'lucide-react';
+import { FileText, ExternalLink, Copy, CheckCircle2, MapPin, BookOpen, Quote, Globe, TriangleAlert } from 'lucide-react';
 import { useState, Fragment } from 'react';
 
 /**
@@ -98,7 +98,7 @@ export function ResearchResults() {
 
   if (!state.results) return null;
 
-  const { summary, sources, findings, relatedTopics } = state.results;
+  const { summary, sources, findings, relatedTopics, webResults } = state.results;
 
   const handleCopy = async (text: string, id: string) => {
     try {
@@ -362,6 +362,44 @@ export function ResearchResults() {
               </div>
             </ScrollArea>
           </div>
+        )}
+
+        {/* Web Results */}
+        {webResults && webResults.length > 0 && (
+          <>
+            <Separator />
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Globe className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-semibold">Web Results</h3>
+              </div>
+              <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-3 mb-4">
+                <TriangleAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 dark:text-amber-300">
+                  These web results have <strong>not been vetted</strong> and may not be fully accurate or relevant. They are provided as a starting point for further exploration only.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {webResults.map((result, index) => (
+                  <div key={index} className="p-3 border rounded-lg hover:bg-accent/50 transition-colors">
+                    <a
+                      href={result.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      {result.title}
+                      <ExternalLink className="h-3 w-3 shrink-0" />
+                    </a>
+                    {result.snippet && (
+                      <p className="text-xs text-muted-foreground mt-1">{result.snippet}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground/60 mt-1 truncate">{result.url}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
         )}
 
         {/* Related Topics */}

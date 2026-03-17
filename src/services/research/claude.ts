@@ -5,6 +5,7 @@ import type {
   ResearchResult,
   Source,
   Finding,
+  WebResult,
 } from '@/types/research';
 import { researchConfig } from '@/lib/config/research';
 
@@ -472,6 +473,49 @@ export async function triage(
     .slice(0, 6);
 
   return { summary, findings, sources, relatedTopics };
+}
+
+/**
+ * Performs a web search for the given query using Anthropic's web search tool.
+ * Returns up to 6 results with title, URL, and snippet.
+ * Fails gracefully — returns [] if unavailable or the model doesn't support it.
+ */
+export async function searchWeb(query: string): Promise<WebResult[]> {
+  if (!anthropicClient) return [];
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await (anthropicClient.messages.create as any)(
+      {
+        model: researchConfig.claudeModel,
+        max_tokens: 1024,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        system:
+          'Search the web for the query. After searching, respond with ONLY a JSON array of the top results, no other text: ' +
+          '[{"title":"...","url":"...","snippet":"one sentence describing what this page covers"}]. Include 4-6 results.',
+        messages: [{ role: 'user', content: query }],
+      },
+      { headers: { 'anthropic-beta': 'web-search-2025-03-05' } }
+    );
+
+    const textBlock = response.content.find((b: { type: string }) => b.type === 'text');
+    if (!textBlock || textBlock.type !== 'text') return [];
+
+    const jsonMatch = (textBlock as { type: 'text'; text: string }).text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return [];
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.slice(0, 6).map((r: Record<string, string>) => ({
+      title: String(r.title ?? ''),
+      url: String(r.url ?? ''),
+      snippet: String(r.snippet ?? ''),
+    }));
+  } catch (err) {
+    console.warn('[claude] Web search failed, skipping:', err);
+    return [];
+  }
 }
 
 /**

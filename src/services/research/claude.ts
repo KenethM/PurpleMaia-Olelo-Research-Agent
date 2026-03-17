@@ -1,72 +1,54 @@
-import Anthropic from '@anthropic-ai/sdk';
 import type {
   ClarifyingQuestion,
   QuestionAnswer,
   ResearchResult,
   Source,
   Finding,
-  WebResult,
 } from '@/types/research';
 import { researchConfig } from '@/lib/config/research';
 
-const anthropicClient = researchConfig.anthropicApiKey
-  ? new Anthropic({ apiKey: researchConfig.anthropicApiKey })
-  : null;
-
-/** Call either Anthropic or DeepSeek (OpenAI-compatible) depending on what's configured. */
+/** Calls the configured OpenAI-compatible LLM API. */
 async function callLLM(opts: {
   system: string;
   userMessage: string;
   maxTokens: number;
 }): Promise<string> {
-  if (anthropicClient) {
-    const response = await anthropicClient.messages.create({
-      model: researchConfig.claudeModel,
+  if (!researchConfig.llmApiUrl || !researchConfig.llmApiKey) {
+    throw new Error(
+      'No LLM provider configured. Set LLM_API_URL and LLM_API_KEY in your .env file.'
+    );
+  }
+
+  const baseUrl = researchConfig.llmApiUrl.replace(/\/$/, '');
+  const endpoint = baseUrl.endsWith('/chat/completions')
+    ? baseUrl
+    : `${baseUrl}/chat/completions`;
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${researchConfig.llmApiKey}`,
+    },
+    body: JSON.stringify({
+      model: researchConfig.llmModel,
       max_tokens: opts.maxTokens,
-      system: opts.system,
-      messages: [{ role: 'user', content: opts.userMessage }],
-    });
-    const content = response.content[0];
-    if (content.type !== 'text') throw new Error('Unexpected response type from Claude');
-    return content.text;
+      messages: [
+        { role: 'system', content: opts.system },
+        { role: 'user', content: opts.userMessage },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => res.statusText);
+    throw new Error(`LLM API error ${res.status}: ${errText}`);
   }
 
-  if (researchConfig.deepseekApiUrl && researchConfig.deepseekApiKey) {
-    const baseUrl = researchConfig.deepseekApiUrl.replace(/\/$/, '');
-    const endpoint = baseUrl.endsWith('/chat/completions')
-      ? baseUrl
-      : `${baseUrl}/chat/completions`;
-
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${researchConfig.deepseekApiKey}`,
-      },
-      body: JSON.stringify({
-        model: researchConfig.deepseekModel,
-        max_tokens: opts.maxTokens,
-        messages: [
-          { role: 'system', content: opts.system },
-          { role: 'user', content: opts.userMessage },
-        ],
-      }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => res.statusText);
-      throw new Error(`DeepSeek API error ${res.status}: ${errText}`);
-    }
-
-    const data = await res.json();
-    const text: string = data?.choices?.[0]?.message?.content;
-    if (!text) throw new Error('DeepSeek returned no content');
-    return text;
-  }
-
-  throw new Error(
-    'No AI provider configured. Set ANTHROPIC_API_KEY or both DEEPSEEK_API_URL and DEEPSEEK_API_KEY in your .env file.'
-  );
+  const data = await res.json();
+  const text: string = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error('LLM returned no content');
+  return text;
 }
 
 export interface QueryAnalysis {
@@ -473,73 +455,6 @@ export async function triage(
     .slice(0, 6);
 
   return { summary, findings, sources, relatedTopics };
-}
-
-/**
- * Performs a web search for the given query using Anthropic's web search tool.
- * Returns up to 6 results with title, URL, and snippet.
- * Fails gracefully — returns [] if unavailable or the model doesn't support it.
- */
-export async function searchWeb(query: string): Promise<WebResult[]> {
-  if (!anthropicClient) return [];
-
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await (anthropicClient.messages.create as any)(
-      {
-        model: researchConfig.claudeModel,
-        max_tokens: 2048,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: `Search the web for: ${query}` }],
-      },
-      { headers: { 'anthropic-beta': 'web-search-2025-03-05' } }
-    );
-
-    // Extract titles and URLs from server_tool_result blocks (raw search results)
-    const results: WebResult[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const block of (response.content as any[])) {
-      if (block.type === 'server_tool_result') {
-        for (const item of (block.content ?? [])) {
-          if (item.type === 'web_search_result_block' && item.url) {
-            results.push({
-              title: String(item.title ?? item.url),
-              url: String(item.url),
-              snippet: '',
-            });
-          }
-        }
-      }
-    }
-
-    if (results.length > 0) {
-      return results.slice(0, 6);
-    }
-
-    // Fallback: if no server_tool_result blocks, try parsing Claude's text response
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const textBlock = (response.content as any[]).find((b) => b.type === 'text');
-    if (textBlock?.text) {
-      const jsonMatch = (textBlock.text as string).match(/\[[\s\S]*?\]/);
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (Array.isArray(parsed)) {
-            return parsed.slice(0, 6).map((r: Record<string, string>) => ({
-              title: String(r.title ?? ''),
-              url: String(r.url ?? ''),
-              snippet: String(r.snippet ?? ''),
-            }));
-          }
-        } catch { /* ignore parse errors */ }
-      }
-    }
-
-    return [];
-  } catch (err) {
-    console.warn('[claude] Web search failed, skipping:', err);
-    return [];
-  }
 }
 
 /**

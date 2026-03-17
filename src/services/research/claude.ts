@@ -488,30 +488,54 @@ export async function searchWeb(query: string): Promise<WebResult[]> {
     const response = await (anthropicClient.messages.create as any)(
       {
         model: researchConfig.claudeModel,
-        max_tokens: 1024,
+        max_tokens: 2048,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system:
-          'Search the web for the query. After searching, respond with ONLY a JSON array of the top results, no other text: ' +
-          '[{"title":"...","url":"...","snippet":"one sentence describing what this page covers"}]. Include 4-6 results.',
-        messages: [{ role: 'user', content: query }],
+        messages: [{ role: 'user', content: `Search the web for: ${query}` }],
       },
       { headers: { 'anthropic-beta': 'web-search-2025-03-05' } }
     );
 
-    const textBlock = response.content.find((b: { type: string }) => b.type === 'text');
-    if (!textBlock || textBlock.type !== 'text') return [];
+    // Extract titles and URLs from server_tool_result blocks (raw search results)
+    const results: WebResult[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const block of (response.content as any[])) {
+      if (block.type === 'server_tool_result') {
+        for (const item of (block.content ?? [])) {
+          if (item.type === 'web_search_result_block' && item.url) {
+            results.push({
+              title: String(item.title ?? item.url),
+              url: String(item.url),
+              snippet: '',
+            });
+          }
+        }
+      }
+    }
 
-    const jsonMatch = (textBlock as { type: 'text'; text: string }).text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) return [];
+    if (results.length > 0) {
+      return results.slice(0, 6);
+    }
 
-    const parsed = JSON.parse(jsonMatch[0]);
-    if (!Array.isArray(parsed)) return [];
+    // Fallback: if no server_tool_result blocks, try parsing Claude's text response
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const textBlock = (response.content as any[]).find((b) => b.type === 'text');
+    if (textBlock?.text) {
+      const jsonMatch = (textBlock.text as string).match(/\[[\s\S]*?\]/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(parsed)) {
+            return parsed.slice(0, 6).map((r: Record<string, string>) => ({
+              title: String(r.title ?? ''),
+              url: String(r.url ?? ''),
+              snippet: String(r.snippet ?? ''),
+            }));
+          }
+        } catch { /* ignore parse errors */ }
+      }
+    }
 
-    return parsed.slice(0, 6).map((r: Record<string, string>) => ({
-      title: String(r.title ?? ''),
-      url: String(r.url ?? ''),
-      snippet: String(r.snippet ?? ''),
-    }));
+    return [];
   } catch (err) {
     console.warn('[claude] Web search failed, skipping:', err);
     return [];

@@ -59,6 +59,7 @@ export interface WebResult {
 
 export interface ResearchResult {
   summary: string;
+  narrativeSummary?: string;
   sources: Source[];
   findings: Finding[];
   relatedTopics?: string[];

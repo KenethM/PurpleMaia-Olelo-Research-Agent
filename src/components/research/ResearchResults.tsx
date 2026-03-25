@@ -98,7 +98,7 @@ export function ResearchResults() {
 
   if (!state.results) return null;
 
-  const { summary, sources, findings, relatedTopics } = state.results;
+  const { summary, narrativeSummary, sources, findings, relatedTopics } = state.results;
 
   const handleCopy = async (text: string, id: string) => {
     try {
@@ -138,7 +138,11 @@ export function ResearchResults() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold">Summary</h3>
-            <Button variant="ghost" size="sm" onClick={() => handleCopy(summary, 'summary')}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleCopy((narrativeSummary ? summary + '\n\n' + narrativeSummary : summary), 'summary')}
+            >
               {copiedId === 'summary' ? (
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               ) : (
@@ -146,7 +150,10 @@ export function ResearchResults() {
               )}
             </Button>
           </div>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{summary}</p>
+          <p className="text-xs text-muted-foreground mb-3">{summary}</p>
+          {narrativeSummary && (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{narrativeSummary}</p>
+          )}
         </div>
 
         <Separator />

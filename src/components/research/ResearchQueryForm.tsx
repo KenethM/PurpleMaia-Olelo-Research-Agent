@@ -8,10 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Search, Sparkles } from 'lucide-react';
 
 const EXAMPLE_QUERIES = [
-  "Tell me about traditional 'awa cultivation practices in Hawaii",
-  "What did Hawaiian newspapers say about fishing rights in the 1920s?",
-  "How was taro farming described in historical Hawaiian texts?",
-  "What are the traditional uses of kukui nuts?",
+  "What are the best practices for growing taro in Hawaii?",
+  "How do I manage coffee berry borer on my farm?",
+  "What cover crops work well in Hawaiian soil?",
+  "What resources are available for new farmers in Hawaii?",
 ];
 
 export function ResearchQueryForm() {
@@ -48,8 +48,8 @@ export function ResearchQueryForm() {
           <CardTitle>Start Your Research</CardTitle>
         </div>
         <CardDescription>
-          Ask questions about Hawaiian history, culture, and traditional practices. Our AI
-          agent will search through Papa Kilo Database and Hawaiian language newspapers.
+          Ask questions about Hawaiian agriculture, farming, and natural resources. Our AI
+          agent will search through the CTAHR document database.
         </CardDescription>
       </CardHeader>
 
@@ -59,7 +59,7 @@ export function ResearchQueryForm() {
             <Textarea
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="What would you like to research? For example: 'What were traditional methods for preserving fish in ancient Hawaii?'"
+              placeholder="What would you like to research? For example: 'What are the best practices for growing taro in Hawaii?'"
               className="min-h-[120px] resize-none"
               disabled={isDisabled}
             />

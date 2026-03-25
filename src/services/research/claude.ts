@@ -9,22 +9,29 @@ import { researchConfig } from '@/lib/config/research';
 
 /**
  * Extracts the first well-formed JSON object from a string.
- * Handles reasoning models that add explanatory text before/after JSON.
+ * Handles reasoning models that add explanatory text before/after JSON,
+ * and sanitizes raw control characters inside string values.
  */
 function extractJSON(text: string): string | null {
   const start = text.indexOf('{');
   if (start === -1) return null;
+  const chars: string[] = [];
   let depth = 0;
   let inString = false;
   let escape = false;
   for (let i = start; i < text.length; i++) {
     const ch = text[i];
-    if (escape) { escape = false; continue; }
-    if (ch === '\\' && inString) { escape = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (ch === '{') depth++;
-    if (ch === '}') { depth--; if (depth === 0) return text.slice(start, i + 1); }
+    const code = text.charCodeAt(i);
+    if (escape) { escape = false; chars.push(ch); continue; }
+    if (ch === '\\' && inString) { escape = true; chars.push(ch); continue; }
+    if (ch === '"') { inString = !inString; chars.push(ch); continue; }
+    // Replace raw control chars inside string values with a space
+    if (inString && code >= 0x00 && code <= 0x1f) { chars.push(' '); continue; }
+    chars.push(ch);
+    if (!inString) {
+      if (ch === '{') depth++;
+      if (ch === '}') { depth--; if (depth === 0) return chars.join(''); }
+    }
   }
   return null;
 }
@@ -469,7 +476,7 @@ export async function triage(
   // Summary from triage stats
   const s = parsed.triage_summary;
   const summary =
-    `Triaged ${s.articles_processed} articles from the Papakilo Database: ` +
+    `Triaged ${s.articles_processed} articles from the CTAHR Database: ` +
     `${s.tier_1} high value, ${s.tier_2} medium value, ${s.tier_3} excluded as peripheral. ` +
     (s.errors > 0 ? `${s.errors} articles could not be loaded. ` : '') +
     `${parsed.findings.length} findings extracted with direct OCR quotes.`;
@@ -480,7 +487,26 @@ export async function triage(
     .map((f) => f.value)
     .slice(0, 6);
 
-  return { summary, findings, sources, relatedTopics };
+  // Narrative summary from tier 1+2 articles and their findings
+  const relevantArticles = parsed.articles.filter((a) => a.tier === 1 || a.tier === 2);
+  let narrativeSummary: string | undefined;
+  if (relevantArticles.length > 0) {
+    const docBlocks = relevantArticles.slice(0, 8).map((a) => {
+      const aFindings = parsed.findings.filter((f) => f.article_id === a.id);
+      const quotes = aFindings.map((f) => `  - "${f.quote}" [${f.note}]`).join('\n');
+      return `Document: ${a.title || a.id} (${a.source ?? 'CTAHR'})\n${quotes || '  (no direct quotes)'}`;
+    }).join('\n\n');
+
+    const narrativeText = await callLLM({
+      system: `You are a research synthesizer. Given a user query and a set of relevant documents with extracted quotes, write a clear 3–5 paragraph prose summary that directly answers the query using the document evidence. Cite document titles inline (e.g., "According to [Title]..."). Be factual and only use information present in the quotes. Do not add external knowledge.`,
+      userMessage: `Query: ${query}\n\nRelevant documents and findings:\n\n${docBlocks}`,
+      maxTokens: 4096,
+    }).catch(() => undefined);
+
+    narrativeSummary = narrativeText ?? undefined;
+  }
+
+  return { summary, narrativeSummary, findings, sources, relatedTopics };
 }
 
 /**

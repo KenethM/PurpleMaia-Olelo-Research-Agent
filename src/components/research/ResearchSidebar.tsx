@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator';
 import { Plus, Search, Trash2, Clock, MessageSquare, Settings, Sun, Moon, Monitor, User, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/contexts/AuthContext';
+import { useResearch } from '@/hooks/contexts/ResearchContext';
 import type { ResearchSession } from '@/types/research';
 
 function truncateQuery(query: string, maxLength = 55): string {
@@ -40,6 +41,7 @@ interface ResearchSidebarProps {
 export function ResearchSidebar({ onNavigate }: ResearchSidebarProps = {}) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { reset } = useResearch();
   const { theme, setTheme } = useTheme();
   const [sessions, setSessions] = useState<ResearchSession[]>([]);
   const [feedbackIds, setFeedbackIds] = useState<Set<string>>(new Set());
@@ -102,7 +104,7 @@ export function ResearchSidebar({ onNavigate }: ResearchSidebarProps = {}) {
       {/* New Research */}
       <div className="p-3 border-b">
         <Button asChild className="w-full" size="sm">
-          <Link href="/research" onClick={onNavigate}>
+          <Link href="/research" onClick={() => { reset(); onNavigate?.(); }}>
             <Plus className="mr-2 h-4 w-4" />
             New Research
           </Link>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from "@/hooks/contexts/AuthContext";
-import { useResearch, ResearchProvider } from "@/hooks/contexts/ResearchContext";
+import { useResearch } from "@/hooks/contexts/ResearchContext";
 import { ResearchQueryForm } from "@/components/research/ResearchQueryForm";
 import { ClarifyingQuestions } from "@/components/research/ClarifyingQuestions";
 import { ResearchStream } from "@/components/research/ResearchStream";
@@ -84,9 +84,5 @@ export default function ResearchPage() {
     );
   }
 
-  return (
-    <ResearchProvider>
-      <ResearchPageContent />
-    </ResearchProvider>
-  );
+  return <ResearchPageContent />;
 }

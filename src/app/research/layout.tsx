@@ -5,11 +5,13 @@ import { Menu } from 'lucide-react';
 import { ResearchSidebar } from '@/components/research/ResearchSidebar';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { ResearchProvider } from '@/hooks/contexts/ResearchContext';
 
 export default function ResearchLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
+    <ResearchProvider>
     <div className="flex h-screen overflow-hidden">
       {/* Desktop sidebar — hidden on mobile */}
       <aside className="hidden md:flex w-64 flex-shrink-0 h-full">
@@ -44,5 +46,6 @@ export default function ResearchLayout({ children }: { children: React.ReactNode
         </div>
       </main>
     </div>
+    </ResearchProvider>
   );
 }

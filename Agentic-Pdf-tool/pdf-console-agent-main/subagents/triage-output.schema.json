@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CTAHR Triage Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["triage_summary", "documents", "findings", "followups"],
+  "properties": {
+    "triage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["documents_processed", "tier_1", "tier_2", "tier_3", "errors"],
+      "properties": {
+        "documents_processed": { "type": "integer", "minimum": 0 },
+        "tier_1": { "type": "integer", "minimum": 0 },
+        "tier_2": { "type": "integer", "minimum": 0 },
+        "tier_3": { "type": "integer", "minimum": 0 },
+        "errors": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "path",
+          "title",
+          "collection",
+          "file_type",
+          "pages",
+          "author",
+          "tier",
+          "reason",
+          "text_quality",
+          "series",
+          "text_file",
+          "search_ids"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "path": { "type": "string" },
+          "title": { "type": "string" },
+          "collection": { "type": "string" },
+          "file_type": { "type": "string" },
+          "pages": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+          "author": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "tier": { "type": "integer", "minimum": 1, "maximum": 3 },
+          "reason": { "type": "string" },
+          "text_quality": { "type": "string", "enum": ["good", "partial", "failed"] },
+          "series": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "text_file": { "type": "string" },
+          "search_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "document_id",
+          "priority",
+          "tags",
+          "tags_extra",
+          "quote",
+          "text_clarity",
+          "note"
+        ],
+        "properties": {
+          "document_id": { "type": "string" },
+          "priority": { "type": "string" },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "tags_extra": { "anyOf": [{ "type": "array", "items": { "type": "string" } }, { "type": "null" }] },
+          "quote": { "type": "string" },
+          "text_clarity": { "type": "string", "enum": ["high", "medium", "low"] },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "followups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "value",
+          "source_document_id",
+          "priority",
+          "notes"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["author", "series", "term", "collection", "topic-gap", "time-gap", "source-gap"]
+          },
+          "value": { "type": "string" },
+          "source_document_id": { "type": "string" },
+          "priority": { "type": "string", "enum": ["high", "medium", "low"] },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

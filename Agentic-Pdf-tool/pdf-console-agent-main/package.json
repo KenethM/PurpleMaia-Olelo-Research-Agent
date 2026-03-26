@@ -1,0 +1,16 @@
+{
+  "name": "ctahr-doc-research",
+  "version": "1.0.0",
+  "description": "CTAHR document collection research tool powered by Claude Code",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "mammoth": "^1.8.0",
+    "officeparser": "^5.1.1",
+    "pdf-parse": "^1.1.1"
+  }
+}

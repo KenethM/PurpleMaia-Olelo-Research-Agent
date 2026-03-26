@@ -95,7 +95,30 @@ bash ./scripts/migrate/up.sh
 pnpm init:seed
 ```
 
-### 6. Build the CTAHR document index
+### 6. Place the CTAHR documents
+
+Unzip the CTAHR document archive **directly into** the following folder:
+
+```
+Agentic-Pdf-tool/pdf-console-agent-main/ctahr-pdfs/
+```
+
+The contents of the zip should land flat inside `ctahr-pdfs/` — not nested inside a subfolder. The expected structure is:
+
+```
+Agentic-Pdf-tool/pdf-console-agent-main/ctahr-pdfs/
+├── SomePaper.pdf
+├── AnotherDoc.docx
+├── SMARTS2/
+│   └── ...
+├── Forestry/
+│   └── ...
+└── ...
+```
+
+> This folder is gitignored. You must place the documents manually on each machine.
+
+### 7. Build the CTAHR document index
 
 ```bash
 cd Agentic-Pdf-tool/pdf-console-agent-main

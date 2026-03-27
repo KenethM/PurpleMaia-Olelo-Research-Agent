@@ -49,30 +49,9 @@ An AI-powered research tool for querying the CTAHR (College of Tropical Agricult
 pnpm install
 ```
 
-### 2. Configure environment
+### 2. Start the database
 
-Copy and fill in `.env`:
-
-```bash
-cp .env.example .env
-```
-
-Key variables:
-
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/myapp
-PASSWORD_HASH_SECRET=your-secret
-
-# LM Studio (OpenAI-compatible endpoint)
-DEEPSEEK_API_URL=https://your-lmstudio-host/v1
-DEEPSEEK_API_KEY=your-api-key
-DEEPSEEK_MODEL=your-model-name
-
-# Papakilo scraper (disabled by default)
-# PAPAKILO_SEARCH_ENABLED=true
-```
-
-### 3. Start the database
+The database runs in Docker. **This must be done on every machine** — it is not included in the repo.
 
 ```bash
 docker run -d \
@@ -80,6 +59,48 @@ docker run -d \
   -e POSTGRES_PASSWORD=postgres \
   -p 5432:5432 \
   pgvector/pgvector:pg17
+```
+
+If the container already exists but is stopped (e.g. after a reboot):
+
+```bash
+docker start olelo-postgres
+```
+
+### 3. Configure environment
+
+The `.env` file is **gitignored** and must be created manually on each machine. Create it at the project root:
+
+```env
+# Database — matches the Docker container above
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/myapp
+
+# Required for password hashing (any random string, keep consistent)
+PASSWORD_HASH_SECRET=dev-secret-key-change-in-production
+
+# Base URL
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+
+# Google OAuth (get from Google Cloud Console)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/google/callback
+
+# LM Studio — OpenAI-compatible LLM endpoint (contact team for values)
+DEEPSEEK_API_URL=https://lmstudio-oahu.purplemaia.org/v1
+DEEPSEEK_API_KEY=pitching-moi-cartoon-survived
+DEEPSEEK_MODEL=cloud-qwen3.5-397b-A17b
+
+# Voyage AI — used for vector embeddings (https://dash.voyageai.com)
+VOYAGE_API_KEY=your-voyage-api-key
+EMBEDDING_MODEL=voyage-3
+EMBEDDING_DIMENSION=1024
+
+# Optional: enable Papakilo newspaper scraper (off by default)
+# PAPAKILO_SEARCH_ENABLED=true
+```
+
+> **Note:** The LM Studio URL, API key, and model name are shared internally — ask a team member if you don't have them.
 ```
 
 ### 4. Create the database and run migrations

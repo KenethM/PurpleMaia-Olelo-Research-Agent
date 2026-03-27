@@ -76,8 +76,7 @@ The `.env` file is **gitignored** and must be created manually on each machine. 
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/myapp
 
 # Required for password hashing (any random string, keep consistent)
-PASSWORD_HASH_SECRET=dev-secret-key-change-in-production
-
+PASSWORD_HASH_SECRET=dev-secret-here
 # Base URL
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 
